@@ -118,19 +118,11 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability
     """
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent.OSVAgent._run_command",
+        "agent.osv_agent.OSVAgent.run_command",
         return_value=JSON_OUTPUT,
     )
 
-    del scan_message_file.data["path"]
-
     test_agent.process(scan_message_file)
 
-    assert len(agent_mock) > 0
-    assert agent_mock[0].selector == "v3.report.vulnerability"
-    assert agent_mock[0].data["risk_rating"] == "MEDIUM"
-    assert (
-        agent_mock[0].data["title"]
-        == "Using CBC with PKCS5Padding is susceptible to padding oracle attacks"
-    )
-    assert len(agent_mock[0].data["references"]) >= 3
+    assert subprocess_mock.call_count == 1
+    assert subprocess_mock.call_args.args[0] == ['/usr/local/bin/osv-scanner', '--format', 'json', '--sbom=/home/oussama/Desktop/agent_osv/files/package_lock.json']

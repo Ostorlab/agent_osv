@@ -9,6 +9,18 @@ from ostorlab.runtimes import definitions as runtime_definitions
 
 from agent import osv_agent
 
+
+@pytest.fixture
+def scan_message_file() -> message.Message:
+    """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    path = "/home/oussama/Desktop/agent_osv/files/package_lock.json"
+    with open(path, "rb") as lock_file:
+        msg_data = {"content": lock_file.read(), "path": path}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+
 @pytest.fixture()
 def test_agent(
     agent_persist_mock: Dict[str | bytes, str | bytes]

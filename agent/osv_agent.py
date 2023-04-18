@@ -4,13 +4,10 @@ import logging
 import subprocess
 from typing import Optional
 
-from rich import logging as rich_logging
-from ostorlab.agent import agent, definitions as agent_definitions
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
-from ostorlab.runtimes import definitions as runtime_definitions
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
-from ostorlab.agent.mixins import agent_persist_mixin as persist_mixin
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from rich import logging as rich_logging
 
 from agent import utils
 
@@ -24,20 +21,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
-LOCK_FILES_EXTENSIONS = ["lockfile", "lock", "json", "yaml", "xml", "txt"]
+LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt"]
 
 
-class OSVAgent(agent.Agent):
+class OSVAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """OSV agent."""
-
-    def __init__(
-            self,
-            agent_definition: agent_definitions.AgentDefinition,
-            agent_settings: runtime_definitions.AgentSettings,
-    ) -> None:
-        agent.Agent.__init__(self, agent_definition, agent_settings)
-        vuln_mixin.AgentReportVulnMixin.__init__(self)
-        persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
 
     def start(self) -> None:
         logger.info("running start")
@@ -51,7 +39,7 @@ class OSVAgent(agent.Agent):
         if self._is_valid_file(content, path) is False:
             logger.info("Invalid file")
             return
-        self._run_osv(path)
+        self._run_osv(path, content)
 
     def _is_valid_file(self, content: Optional[bytes], path: Optional[str]) -> bool:
         """check whether the file is valid lock file or not
@@ -71,22 +59,31 @@ class OSVAgent(agent.Agent):
 
         return True
 
-    def _run_osv(self, file_path: str):
+    def _run_osv(self, file_path: str | None, content: bytes | None):
         """perform the scan on the file"""
-        command = ["/usr/local/bin/osv-scanner", f"--sbom={file_path}", "--format", "json", "/tmp"]
-        output = self._run_command(command, self.args.get("timeout"))
+
+        if content is None:
+            return
+
+        decoded_content = content.decode("utf-8")
+        if file_path is None:
+            logger.info("null path")
+            extension = utils.get_file_type(content, file_path)
+            file_path = f"/tmp/lock_file{extension}"
+            with open(file_path, 'w') as f:
+                f.write(decoded_content)
+
+        command = ["/usr/local/bin/osv-scanner", "--format", "json", f"--sbom={file_path}"]
+        output = self.run_command(command)
         data = self._build_putput(output)
 
     def _build_putput(self, output: Optional[bytes]):
-        if isinstance(output, bytes):
-            return json.loads(output)
-        else:
-            logger.error("Process completed with errors")
+        pass
 
-    def _run_command(self, command: list[str] | str, timeout: Optional[int] = None):
+    def run_command(self, command: list[str] | str):
         try:
             output = subprocess.run(
-                command, capture_output=True, check=True, timeout=timeout
+                command, capture_output=True, check=True
             )
         except subprocess.CalledProcessError as e:
             logger.error(
@@ -101,8 +98,6 @@ class OSVAgent(agent.Agent):
 
     def _emit_results(self, json_output):
         return NotImplemented
-
-
 
 
 if __name__ == "__main__":
