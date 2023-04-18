@@ -1,6 +1,5 @@
 """OSV agent implementation"""
 import logging
-from typing import Union
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
