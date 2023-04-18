@@ -1,3 +1,5 @@
+"""Pytest fixture for the osv agent."""
+
 import random
 import pathlib
 from typing import Dict
@@ -14,11 +16,27 @@ from agent import osv_agent
 def scan_message_file() -> message.Message:
     """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
-    path = "/home/oussama/Desktop/agent_osv/files/package_lock.json"
+    parent_abs_path = pathlib.Path.cwd().parent.resolve()
+    path = f"{parent_abs_path}/files/package_lock.json"
     with open(path, "rb") as lock_file:
         msg_data = {"content": lock_file.read(), "path": path}
     return message.Message.from_data(selector, data=msg_data)
 
+
+@pytest.fixture
+def empty_scan_message_file() -> message.Message:
+    """Creates empty message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {"content": b"", "path": ""}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def invalid_scan_message_file() -> message.Message:
+    """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {"content": b"", "path": "test.java"}
+    return message.Message.from_data(selector, data=msg_data)
 
 
 @pytest.fixture()

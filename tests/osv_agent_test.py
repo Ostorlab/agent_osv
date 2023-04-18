@@ -1,14 +1,12 @@
 """Unittests for OSV agent."""
-import subprocess
 from typing import Union
 
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
 from agent import osv_agent
-from agent import utils
 
-JSON_OUTPUT = b'''
+JSON_OUTPUT = b"""
 {
   "results": [
     {
@@ -103,10 +101,10 @@ JSON_OUTPUT = b'''
     }
   ]
 }
-'''
+"""
 
 
-def testAgentOSV_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
+def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
@@ -118,11 +116,55 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability
     """
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent.OSVAgent.run_command",
+        "agent.osv_agent.run_command",
         return_value=JSON_OUTPUT,
     )
 
     test_agent.process(scan_message_file)
 
     assert subprocess_mock.call_count == 1
-    assert subprocess_mock.call_args.args[0] == ['/usr/local/bin/osv-scanner', '--format', 'json', '--sbom=/home/oussama/Desktop/agent_osv/files/package_lock.json']
+    assert subprocess_mock.call_args.args[0][0] == "/usr/local/bin/osv-scanner"
+    assert subprocess_mock.call_args.args[0][1] == "--format"
+    assert subprocess_mock.call_args.args[0][2] == "json"
+
+
+def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    empty_scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    subprocess_mock = mocker.patch(
+        "agent.osv_agent.run_command",
+        return_value=JSON_OUTPUT,
+    )
+
+    test_agent.process(empty_scan_message_file)
+
+    assert subprocess_mock.call_count == 0
+
+
+def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    invalid_scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    subprocess_mock = mocker.patch(
+        "agent.osv_agent.run_command",
+        return_value=JSON_OUTPUT,
+    )
+
+    test_agent.process(invalid_scan_message_file)
+
+    assert subprocess_mock.call_count == 0
