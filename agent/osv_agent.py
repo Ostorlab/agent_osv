@@ -1,5 +1,6 @@
 """OSV agent implementation"""
 import logging
+from typing import Union
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
@@ -33,7 +34,7 @@ class OSVAgent(agent.Agent):
         Returns:
             Boolean whether the file is valid
         """
-        pass
+        return NotImplemented
 
     def _is_sbom_file(self, content: bytes) -> bool:
         """check whether the file is valid sbom file or not
@@ -42,10 +43,11 @@ class OSVAgent(agent.Agent):
         Returns:
             Boolean whether the file is valid
         """
+        return NotImplemented
 
-    def _run_osv(self, file_path: str) -> bytes | None:
+    def _run_osv(self, file_path: str) -> str:
         """perform the scan on the file"""
-        pass
+        return NotImplemented
 
 
 if __name__ == "__main__":
