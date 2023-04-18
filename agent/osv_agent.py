@@ -26,26 +26,29 @@ class OSVAgent(agent.Agent):
     def process(self, message: m.Message) -> None:
         logger.info("processing message of selector : %s", message.selector)
 
-    def _is_lock_file(self, content: bytes) -> bool:  # pylint: disable=W0613
+    def _is_lock_file(self, content: bytes) -> bool:
         """check whether the file is valid lock file or not
         Args:
             content: the file content
         Returns:
             Boolean whether the file is valid
         """
+        del content
         return NotImplemented
 
-    def _is_sbom_file(self, content: bytes) -> bool:  # pylint: disable=W0613
+    def _is_sbom_file(self, content: bytes) -> bool:
         """check whether the file is valid sbom file or not
         Args:
             content: the file content
         Returns:
             Boolean whether the file is valid
         """
+        del content
         return NotImplemented
 
-    def _run_osv(self, file_path: str) -> str:  # pylint: disable=W0613
+    def _run_osv(self, file_path: str) -> str:
         """perform the scan on the file"""
+        del file_path
         return NotImplemented
 
 
