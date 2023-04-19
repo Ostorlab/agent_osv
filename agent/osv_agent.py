@@ -13,7 +13,6 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 class OSVAgent(agent.Agent):
@@ -26,7 +25,7 @@ class OSVAgent(agent.Agent):
     def process(self, message: m.Message) -> None:
         logger.info("processing message of selector : %s", message.selector)
 
-    def _is_lock_file(self, content: bytes) -> bool:
+    def _is_lock_file(self, content: bytes) -> None:
         """check whether the file is valid lock file or not
         Args:
             content: the file content
@@ -34,9 +33,9 @@ class OSVAgent(agent.Agent):
             Boolean whether the file is valid
         """
         del content
-        return NotImplemented
+        raise NotImplementedError
 
-    def _is_sbom_file(self, content: bytes) -> bool:
+    def _is_sbom_file(self, content: bytes) -> None:
         """check whether the file is valid sbom file or not
         Args:
             content: the file content
@@ -44,12 +43,12 @@ class OSVAgent(agent.Agent):
             Boolean whether the file is valid
         """
         del content
-        return NotImplemented
+        raise NotImplementedError
 
-    def _run_osv(self, file_path: str) -> str:
+    def _run_osv(self, file_path: str) -> None:
         """perform the scan on the file"""
         del file_path
-        return NotImplemented
+        raise NotImplementedError
 
 
 if __name__ == "__main__":
