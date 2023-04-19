@@ -54,9 +54,15 @@ class OSVAgent(
         if content is None or content == b"":
             return
         self.osv_wrapper = osv_wrapper.OSVWrapper(content=content, path=path)
-        if self.osv_wrapper is not None and self.osv_wrapper.is_valid_file() is False:
-            logger.info("Invalid file")
-            return
+        try:
+            if (
+                self.osv_wrapper is not None
+                and self.osv_wrapper.is_valid_file() is False
+            ):
+                logger.info("Invalid file")
+                return
+        except NotImplementedError:
+            logger.info("NotImplementedError")
 
         self._run_osv(path, content)
 

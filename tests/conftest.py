@@ -54,23 +54,3 @@ def test_agent(
             redis_url="redis://guest:guest@localhost:6379",
         )
         return osv_agent.OSVAgent(definition, settings)
-
-
-@pytest.fixture
-def valid_lock_file_content() -> bytes:
-    return b"valid_lock_file_content"
-
-
-@pytest.fixture
-def invalid_lock_file_content() -> bytes:
-    return b""
-
-
-@pytest.fixture
-def invalid_lock_file_path() -> str:
-    return "/invalid/lock/file/path"
-
-
-@pytest.fixture
-def valid_lock_file_path() -> str:
-    return "/valid/lock/file/path.lock"
