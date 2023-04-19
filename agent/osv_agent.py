@@ -1,6 +1,8 @@
 """OSV agent implementation"""
+import json
 import logging
 import subprocess
+from typing import Any
 
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
@@ -19,6 +21,8 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
+
+OUTPUT_PATH = "/tmp/osv_output.json"
 
 
 class OSVAgent(
@@ -83,11 +87,21 @@ class OSVAgent(
             "--format",
             "json",
             f"--sbom={file_path}",
+            ">",
+            f"{OUTPUT_PATH}",
         ]
         run_command(command)
+        self._emit_results()
 
-    def _emit_results(self, json_output: str) -> None:
-        raise NotImplementedError
+    def _emit_results(self) -> None:
+        """Parses results and emits vulnerabilities."""
+        for vuln in osv_wrapper.parse_results(OUTPUT_PATH):
+            self.report_vulnerability(
+                entry=vuln.entry,
+                technical_detail=vuln.technical_detail,
+                risk_rating=vuln.risk_rating,
+                vulnerability_location=vuln.vulnerability_location,
+            )
 
 
 def run_command(command: list[str] | str) -> bytes | None:

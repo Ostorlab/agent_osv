@@ -1,7 +1,10 @@
 """Unittests for OSV wrapper."""
+import json
+
+import pytest
+from pytest_mock import plugin
 
 from agent import osv_wrapper
-from pytest_mock import plugin
 
 
 def testOSVWrapper_withValidLockFile_returnTrue(valid_lock_file_content: bytes) -> None:
@@ -39,3 +42,23 @@ def testOSVWrapper_withLockFileContent_returnFileType(
     from_buffer_mock.return_value = "text/plain"
     osv_scanner_wrapper = osv_wrapper.OSVWrapper(valid_lock_file_content, None)
     assert osv_scanner_wrapper.get_file_type() == ".txt"
+
+
+def testReadOutputFile_withValidFile_returnData(output_file):
+    """Test read_output_file with a valid file"""
+    data = osv_wrapper.read_output_file(output_file)
+    assert data == {"key": "value"}
+
+
+def testReadOutputFile_withMissingFile_raiseFileNotFoundError():
+    """Test read_output_file with a missing file"""
+    with pytest.raises(FileNotFoundError):
+        osv_wrapper.read_output_file("nonexistent_file.json")
+
+
+def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file):
+    """Test read_output_file with a file containing invalid JSON"""
+    with open(output_file, "w") as f:
+        f.write("not JSON")
+    with pytest.raises(json.JSONDecodeError):
+        osv_wrapper.read_output_file(output_file)

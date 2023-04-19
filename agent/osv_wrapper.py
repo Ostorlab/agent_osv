@@ -1,11 +1,36 @@
 """OSV Wrapper responsible for running OSV Scanner on the appropriate file"""
+import dataclasses
+import json
 import logging
 import mimetypes
 import os
+import re
 from typing import Optional
 
+from agent import cve_service_api
 import magic
+from ostorlab.agent.kb import kb
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from ostorlab.assets import file
 from rich import logging as rich_logging
+
+RISK_RATING_MAPPING = {
+    "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
+    "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
+    "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
+    "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
+}
+
+
+@dataclasses.dataclass
+class Vulnerability:
+    """Vulnerability dataclass to pass to the emit method."""
+
+    entry: kb.Entry
+    technical_detail: str
+    risk_rating: agent_report_vulnerability_mixin.RiskRating
+    vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
+
 
 logging.basicConfig(
     format="%(message)s",
@@ -76,3 +101,103 @@ class OSVWrapper:
 
     def build_putput(self, output: Optional[bytes]) -> None:
         raise NotImplementedError
+
+
+def construct_technical_detail(
+    package_name, package_version, package_framework, file_type, vuln_aliases, vuln_id
+) -> str:
+    technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`, version 
+    `{package_version}`, framework {package_framework}.
+    The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`."""
+
+    return technical_detail
+
+
+def read_output_file(output_file_path: str) -> dict[str, str]:
+    """Read the OSV scanner output from json file and return dict
+    Args:
+        output_file_path: the OSV scanner output file
+    returns:
+        Dict representation of the json object
+    """
+    with open(output_file_path, "r") as of:
+        data = json.load(of)
+
+    return data
+
+
+def parse_results(output_file_path: str):
+    """Parses JSON generated OSV results and yield vulnerability entries.
+    Args:
+        output_file_path: OSV json output file path.
+    Yields:
+        Vulnerability entry.
+    """
+
+    data = read_output_file(output_file_path)
+
+    for result in data.get("results", []):
+        file_type = result.get("source", {}).get("type", "")
+        file_path = result.get("source", {}).get("path", "")
+        packages = result.get("packages", {})
+        for package in packages:
+            package_name = package.get("package", {}).get("name", "")
+            package_version = package.get("package", {}).get("version", "")
+            package_framework = package.get("package", {}).get("ecosystem", "")
+            for vuln in package.get("vulnerabilities", []):
+                vuln_id = vuln.get("id")
+                vuln_aliases = vuln.get("aliases")
+                summary = vuln.get("summary")
+                technical_detail = construct_technical_detail(
+                    package_name,
+                    package_version,
+                    package_framework,
+                    file_type,
+                    vuln_aliases,
+                    vuln_id,
+                )
+                risk_rating = calculate_risk_rating(vuln_aliases)
+                vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
+                    asset=file.File(),
+                    metadata=[
+                        agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
+                            metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
+                            value=file_path,
+                        )
+                    ],
+                )
+                yield Vulnerability(
+                    entry=kb.Entry(
+                        title=summary,
+                        risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
+                        short_description=summary,
+                        description="",
+                        references=vuln.get("references")[0],
+                        security_issue=True,
+                        privacy_issue=False,
+                        has_public_exploit=False,
+                        targeted_by_malware=False,
+                        targeted_by_ransomware=False,
+                        targeted_by_nation_state=False,
+                    ),
+                    technical_detail=technical_detail,
+                    risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
+                    vulnerability_location=vuln_location,
+                )
+
+
+def calculate_risk_rating(cve_ids: list[str]) -> str:
+    risk_ratings = []
+    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
+
+    for cve_id in cve_ids:
+        risk_ratings.append(cve_service_api.get_cve_risk_rating(cve_id))
+
+    sorted_ratings = sorted(
+        risk_ratings, key=lambda x: priority_levels.get(x, 0), reverse=False
+    )
+
+    for rating in sorted_ratings:
+        if rating in priority_levels:
+            return rating
+    return "UNKNOWN"

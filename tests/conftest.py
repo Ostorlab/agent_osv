@@ -1,5 +1,5 @@
 """Pytest fixture for the osv agent."""
-
+import json
 import random
 import pathlib
 from typing import Dict
@@ -74,3 +74,22 @@ def invalid_lock_file_path() -> str:
 @pytest.fixture
 def valid_lock_file_path() -> str:
     return "/valid/lock/file/path.lock"
+
+
+@pytest.fixture
+def osv_output() -> dict:
+    with open(
+        f"{pathlib.Path.cwd().parent.resolve()}/files/osv_output.json", "r"
+    ) as of:
+        data = json.load(of)
+    return data
+
+
+@pytest.fixture
+def output_file(tmpdir):
+    """Create a temporary file and write JSON data to it"""
+    data = {"key": "value"}
+    file_path = tmpdir.join("output.json")
+    with open(str(file_path), "w") as f:
+        json.dump(data, f)
+    return str(file_path)
