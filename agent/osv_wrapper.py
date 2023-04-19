@@ -4,15 +4,15 @@ import json
 import logging
 import mimetypes
 import os
-import re
-from typing import Optional
+from typing import Optional, Iterator, Any
 
-from agent import cve_service_api
 import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
 from rich import logging as rich_logging
+
+from agent import cve_service_api
 
 RISK_RATING_MAPPING = {
     "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
@@ -104,29 +104,45 @@ class OSVWrapper:
 
 
 def construct_technical_detail(
-    package_name, package_version, package_framework, file_type, vuln_aliases, vuln_id
+    package_name: str,
+    package_version: str,
+    package_framework: str,
+    file_type: str,
+    vuln_aliases: list[str],
+    vuln_id: str,
 ) -> str:
-    technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`, version 
-    `{package_version}`, framework {package_framework}.
+    """construct the technical detail
+    Args:
+        package_name: the vulnerable package name
+        package_version: the vulnerable package version
+        package_framework: the package ecosystem
+        file_type: lock file type
+        vuln_aliases: Vulnerability CVEs
+        vuln_id: vulnerability id
+    Returns:
+        technical detail
+    """
+    technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`,
+    version `{package_version}`, framework {package_framework}.
     The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`."""
 
     return technical_detail
 
 
-def read_output_file(output_file_path: str) -> dict[str, str]:
+def read_output_file(output_file_path: str) -> dict[Any, Any]:
     """Read the OSV scanner output from json file and return dict
     Args:
         output_file_path: the OSV scanner output file
     returns:
         Dict representation of the json object
     """
-    with open(output_file_path, "r") as of:
-        data = json.load(of)
+    with open(output_file_path, "r", encoding="utf-8") as of:
+        data: dict[str, str] = json.load(of)
 
     return data
 
 
-def parse_results(output_file_path: str):
+def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
     """Parses JSON generated OSV results and yield vulnerability entries.
     Args:
         output_file_path: OSV json output file path.
@@ -135,8 +151,8 @@ def parse_results(output_file_path: str):
     """
 
     data = read_output_file(output_file_path)
-
-    for result in data.get("results", []):
+    results: dict[Any, Any] = data.get("results", [])
+    for result in results:
         file_type = result.get("source", {}).get("type", "")
         file_path = result.get("source", {}).get("path", "")
         packages = result.get("packages", {})
@@ -169,7 +185,7 @@ def parse_results(output_file_path: str):
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
-                        risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
+                        risk_rating=risk_rating.upper(),
                         short_description=summary,
                         description="",
                         references=vuln.get("references")[0],
@@ -187,6 +203,12 @@ def parse_results(output_file_path: str):
 
 
 def calculate_risk_rating(cve_ids: list[str]) -> str:
+    """Calculate the risk rating of a given cve ids of a vulnerability
+    Args:
+        cve_ids: cve ids of a vulnerability
+    Returns:
+        Risk rating of a vulnerability
+    """
     risk_ratings = []
     priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
@@ -194,7 +216,7 @@ def calculate_risk_rating(cve_ids: list[str]) -> str:
         risk_ratings.append(cve_service_api.get_cve_risk_rating(cve_id))
 
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x, 0), reverse=False
+        risk_ratings, key=lambda x: priority_levels.get(x) or "UNKNOWN", reverse=False  # type: ignore
     )
 
     for rating in sorted_ratings:

@@ -44,21 +44,21 @@ def testOSVWrapper_withLockFileContent_returnFileType(
     assert osv_scanner_wrapper.get_file_type() == ".txt"
 
 
-def testReadOutputFile_withValidFile_returnData(output_file):
+def testReadOutputFile_withValidFile_returnData(output_file: str) -> None:
     """Test read_output_file with a valid file"""
     data = osv_wrapper.read_output_file(output_file)
     assert data == {"key": "value"}
 
 
-def testReadOutputFile_withMissingFile_raiseFileNotFoundError():
+def testReadOutputFile_withMissingFile_raiseFileNotFoundError() -> None:
     """Test read_output_file with a missing file"""
     with pytest.raises(FileNotFoundError):
         osv_wrapper.read_output_file("nonexistent_file.json")
 
 
-def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file):
+def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) -> None:
     """Test read_output_file with a file containing invalid JSON"""
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write("not JSON")
     with pytest.raises(json.JSONDecodeError):
         osv_wrapper.read_output_file(output_file)

@@ -1,8 +1,6 @@
 """OSV agent implementation"""
-import json
 import logging
 import subprocess
-from typing import Any
 
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
@@ -11,6 +9,7 @@ from ostorlab.agent.mixins import agent_persist_mixin
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
+
 from agent import osv_wrapper
 
 logging.basicConfig(

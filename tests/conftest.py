@@ -77,19 +77,22 @@ def valid_lock_file_path() -> str:
 
 
 @pytest.fixture
-def osv_output() -> dict:
+def osv_output() -> dict[str, str]:
+    """Return a temporary file and write JSON data to it"""
     with open(
-        f"{pathlib.Path.cwd().parent.resolve()}/files/osv_output.json", "r"
+        f"{pathlib.Path.cwd().parent.resolve()}/files/osv_output.json",
+        "r",
+        encoding="utf-8",
     ) as of:
-        data = json.load(of)
+        data: dict[str, str] = json.load(of)
     return data
 
 
 @pytest.fixture
-def output_file(tmpdir):
+def output_file(tmp_path: pathlib.Path) -> str:
     """Create a temporary file and write JSON data to it"""
     data = {"key": "value"}
-    file_path = tmpdir.join("output.json")
-    with open(str(file_path), "w") as f:
+    file_path = f"{tmp_path}/output.json"
+    with open(str(file_path), "w", encoding="utf-8") as f:
         json.dump(data, f)
     return str(file_path)

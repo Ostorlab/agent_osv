@@ -35,6 +35,7 @@ jobs:
           python -m pip install -r requirement.txt
           python -m pip install -r tests/test-requirement.txt
           python -m pip install mypy typing_extensions
+          python -m pip install types-requests
       - name: Running Black.
         uses: psf/black@stable
         with:
