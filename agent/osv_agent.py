@@ -23,7 +23,6 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt"]
 
