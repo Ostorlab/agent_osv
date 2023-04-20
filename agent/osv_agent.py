@@ -20,6 +20,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+OSV_COMMAND = [
+    "/usr/local/bin/osv-scanner",
+    "--format",
+    "json",
+    "--sbom=",
+]
+
 
 class OSVAgent(
     agent.Agent,
@@ -59,7 +66,7 @@ class OSVAgent(
                 self.osv_wrapper is not None
                 and self.osv_wrapper.is_valid_file() is False
             ):
-                logger.info("Invalid file")
+                logger.info("Invalid file: %s", path)
                 return
         except NotImplementedError:
             logger.info("NotImplementedError")
@@ -77,14 +84,11 @@ class OSVAgent(
 
         if self.osv_wrapper is not None and file_path is None:
             file_path = self.osv_wrapper.write_content_to_file()
-
-        command = [
-            "/usr/local/bin/osv-scanner",
-            "--format",
-            "json",
-            f"--sbom={file_path}",
-        ]
-        run_command(command)
+        if file_path is None:
+            logger.info("The file path is empty")
+            return
+        OSV_COMMAND.append(file_path)
+        run_command(OSV_COMMAND)
 
     def _emit_results(self, json_output: str) -> None:
         raise NotImplementedError
