@@ -21,6 +21,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+OSV_COMMAND = [
+    "/usr/local/bin/osv-scanner",
+    "--format",
+    "json",
+    "--sbom=",
+]
+
 OUTPUT_PATH = "/tmp/osv_output.json"
 
 
@@ -60,9 +67,9 @@ class OSVAgent(
         try:
             if (
                 self.osv_wrapper is not None
-                and self.osv_wrapper.is_valid_file() is False
+                and self.osv_wrapper.validate_and_set_lock_file_extension() is False
             ):
-                logger.info("Invalid file")
+                logger.info("Invalid file: %s", path)
                 return
         except NotImplementedError:
             logger.info("NotImplementedError")

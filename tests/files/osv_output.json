@@ -2,7 +2,7 @@
   "results": [
     {
       "source": {
-        "path": "/home/falcon/Ostorlab/ogle_reporting_engine/requirements.txt",
+        "path": "/home/oussama/ogle_reporting_engine/requirements.txt",
         "type": "lockfile"
       },
       "packages": [

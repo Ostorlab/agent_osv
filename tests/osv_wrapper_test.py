@@ -9,21 +9,21 @@ from agent import osv_wrapper
 
 def testOSVWrapper_withValidLockFile_returnTrue(valid_lock_file_content: bytes) -> None:
     osv_scanner_wrapper = osv_wrapper.OSVWrapper(valid_lock_file_content, None)
-    assert osv_scanner_wrapper.is_valid_file() is True
+    assert osv_scanner_wrapper.validate_and_set_lock_file_extension() is True
 
 
 def testOSVWrapper_withEmptyLockFile_returnFalse(
     invalid_lock_file_content: bytes,
 ) -> None:
     osv_scanner_wrapper = osv_wrapper.OSVWrapper(invalid_lock_file_content, None)
-    assert osv_scanner_wrapper.is_valid_file() is False
+    assert osv_scanner_wrapper.validate_and_set_lock_file_extension() is False
 
 
 def testOSVWrapper_withInvalidLockFile_returnFalse() -> None:
     osv_scanner_wrapper = osv_wrapper.OSVWrapper(
         b"invalid_lock_file_content", "/invalid/lock/file/path.foo"
     )
-    assert osv_scanner_wrapper.is_valid_file() is False
+    assert osv_scanner_wrapper.validate_and_set_lock_file_extension() is False
 
 
 def testOSVWrapper_withLockFilePath_returnFileType(
