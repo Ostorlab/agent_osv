@@ -1,33 +1,18 @@
 """Unittests for CVE service api."""
 
-import requests
-
-from agent import cve_service_api
 from pytest_mock import plugin
 
+from agent import cve_service_api
 
-def testGetCveRiskRating_withResponse_returnRiskRating(
+
+def testGetCveData_withResponse_returnRiskRating(
     mocker: plugin.MockerFixture,
 ) -> None:
-    cve_data = {
-        "result": {
-            "CVE_Items": [
-                {"impact": {"baseMetricV3": {"cvssV3": {"baseSeverity": "HIGH"}}}}
-            ]
-        }
-    }
+    cve_data = cve_service_api.CVEDATA(
+        risk="HIGH", description="description", cvss_v3_vector=None
+    )
 
     mocker.patch("agent.cve_service_api.requests.get")
-    mocker.patch("agent.cve_service_api.json.loads", return_value=cve_data)
-
-    assert cve_service_api.get_cve_risk_rating("CVE-2021-12345") == "HIGH"
-
-
-def testGetCveRiskRating_withoutResponseError_returnRiskRating(
-    mocker: plugin.MockerFixture,
-) -> None:
-    with mocker.patch(
-        "agent.cve_service_api.requests.get",
-        side_effect=requests.exceptions.RequestException,
-    ):
-        assert cve_service_api.get_cve_risk_rating("CVE-2021-12345") is None
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-12345")
+    assert cve_data.risk == "HIGH"

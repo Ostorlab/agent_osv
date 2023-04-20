@@ -88,15 +88,13 @@ class OSVAgent(
         if self.osv_wrapper is not None and file_path is None:
             file_path = self.osv_wrapper.write_content_to_file()
 
-        command = [
-            "/usr/local/bin/osv-scanner",
-            "--format",
-            "json",
-            f"--sbom={file_path}",
-            ">",
-            f"{OUTPUT_PATH}",
-        ]
-        run_command(command)
+        if file_path is None:
+            logger.info("The file path is empty")
+            return
+        OSV_COMMAND.append(file_path)
+        OSV_COMMAND.append(">")
+        OSV_COMMAND.append(OUTPUT_PATH)
+        run_command(OSV_COMMAND)
         self._emit_results()
 
     def _emit_results(self) -> None:

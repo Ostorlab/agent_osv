@@ -79,7 +79,7 @@ def valid_lock_file_path() -> str:
 def osv_output() -> dict[str, str]:
     """Return a temporary file and write JSON data to it"""
     with open(
-        f"{pathlib.Path.cwd().parent.resolve()}/files/osv_output.json",
+        f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_output.json",
         "r",
         encoding="utf-8",
     ) as of:

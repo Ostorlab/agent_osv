@@ -1,5 +1,6 @@
 """Unittests for OSV wrapper."""
 import json
+import pathlib
 
 import pytest
 from pytest_mock import plugin
@@ -62,3 +63,17 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) ->
         f.write("not JSON")
     with pytest.raises(json.JSONDecodeError):
         osv_wrapper.read_output_file(output_file)
+
+
+def testParseResults_withValidFile_returnData() -> None:
+    parsed_data = osv_wrapper.parse_results(
+        f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_output.json"
+    )
+
+    parsed_data_list = list(parsed_data)
+
+    assert parsed_data_list[0].risk_rating.name == "HIGH"
+    assert "has a security issue at the package" in parsed_data_list[0].technical_detail
+    assert "protobuf" in parsed_data_list[0].technical_detail
+    assert "version `3.20.1`" in parsed_data_list[0].technical_detail
+    assert "The issue ID `GHSA-8gq9-2x98-w8hf`" in parsed_data_list[0].technical_detail

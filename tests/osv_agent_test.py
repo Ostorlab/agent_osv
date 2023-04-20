@@ -7,6 +7,7 @@ from pytest_mock import plugin
 
 from agent import osv_agent
 from agent import osv_wrapper
+from agent import cve_service_api
 
 
 def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
@@ -20,13 +21,17 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     """Unittest for the full life cycle of the agent:
     case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
+    cve_data = cve_service_api.CVEDATA(
+        risk="HIGH", description="description", cvss_v3_vector=None
+    )
 
     subprocess_mock = mocker.patch("agent.osv_agent.run_command")
-
     mocker.patch("agent.osv_wrapper.read_output_file", return_value=osv_output)
-    mocker.patch("agent.cve_service_api.get_cve_risk_rating", return_value="HIGH")
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(scan_message_file)
+
     assert subprocess_mock.call_count == 1
     assert subprocess_mock.call_args.args[0][0] == "/usr/local/bin/osv-scanner"
     assert subprocess_mock.call_args.args[0][1] == "--format"
@@ -55,7 +60,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch("agent.osv_agent.run_command")
-    mocker.patch("agent.cve_service_api.get_cve_risk_rating", return_value="HIGH")
+    mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(empty_scan_message_file)
 
@@ -75,7 +80,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch("agent.osv_agent.run_command")
-    mocker.patch("agent.cve_service_api.get_cve_risk_rating", return_value="HIGH")
+    mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(invalid_scan_message_file)
 
@@ -84,33 +89,20 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
 
 
 @pytest.mark.parametrize(
-    "cve_ids, expected_rating",
+    "risk_ratings, expected_rating",
     [
         ([], "UNKNOWN"),
-        (["CVE-2022-1111"], "HIGH"),
-        (["CVE-2022-1111", "CVE-2022-2222"], "HIGH"),
-        (["CVE-2022-1111", "CVE-2022-2222", "CVE-2022-3333"], "HIGH"),
-        (["CVE-2022-2222", "CVE-2022-1111"], "HIGH"),
-        (["CVE-2022-3333", "CVE-2022-1111", "CVE-2022-2222"], "HIGH"),
-        (["CVE-2022-2222", "CVE-2022-3333"], "MEDIUM"),
-        (["CVE-2022-3333"], "LOW"),
-        (["CVE-2022-3333", "CVE-2022-3333", "CVE-2022-3333"], "LOW"),
+        (["HIGH"], "HIGH"),
+        (["HIGH", "MEDIUM"], "HIGH"),
+        (["HIGH", "MEDIUM", "LOW"], "HIGH"),
+        (["MEDIUM", "HIGH"], "HIGH"),
+        (["LOW", "HIGH", "MEDIUM"], "HIGH"),
+        (["MEDIUM", "LOW"], "MEDIUM"),
+        (["LOW"], "LOW"),
+        (["LOW", "LOW", "LOW"], "LOW"),
     ],
 )
 def testcalculateRiskRating_whenCveRiskRating_returnRiskRating(
-    cve_ids: list[str], expected_rating: str, mocker: plugin.MockerFixture
+    risk_ratings: list[str], expected_rating: str
 ) -> None:
-    def risk_rating_side_effect(x: str) -> str | None:
-        if x == "CVE-2022-1111":
-            return "HIGH"
-        elif x == "CVE-2022-3333":
-            return "LOW"
-        elif x == "CVE-2022-2222":
-            return "MEDIUM"
-        else:
-            return None
-
-    mocker.patch(
-        "agent.cve_service_api.get_cve_risk_rating", side_effect=risk_rating_side_effect
-    )
-    assert osv_wrapper.calculate_risk_rating(cve_ids) == expected_rating
+    assert osv_wrapper.calculate_risk_rating(risk_ratings) == expected_rating

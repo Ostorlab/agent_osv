@@ -171,7 +171,7 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
                     vuln_aliases,
                     vuln_id,
                 )
-                risk_rating = calculate_risk_rating(vuln_aliases)
+                cve_data = get_cve_data_summary(vuln_aliases)
                 vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
                     asset=file.File(),
                     metadata=[
@@ -184,9 +184,9 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
-                        risk_rating=risk_rating.upper(),
+                        risk_rating=cve_data.risk.upper(),
                         short_description=summary,
-                        description="",
+                        description=cve_data.description,
                         references=vuln.get("references")[0],
                         security_issue=True,
                         privacy_issue=False,
@@ -196,26 +196,46 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
                         targeted_by_nation_state=False,
                     ),
                     technical_detail=technical_detail,
-                    risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
+                    risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
                     vulnerability_location=vuln_location,
                 )
 
 
-def calculate_risk_rating(cve_ids: list[str]) -> str:
-    """Calculate the risk rating of a given cve ids of a vulnerability
+def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVEDATA:
+    """Set cve summary including risk rating, description and cvss v3 vector
     Args:
         cve_ids: cve ids of a vulnerability
     Returns:
-        Risk rating of a vulnerability
+        CVEDATA of cve information
     """
     risk_ratings = []
-    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    description = ""
+    cvss_v3_vector = ""
 
     for cve_id in cve_ids:
-        risk_ratings.append(cve_service_api.get_cve_risk_rating(cve_id))
+        cve_data = cve_service_api.get_cve_data_from_api(cve_id)
+        risk_ratings.append(cve_data.risk)
+        if cve_data.description is not None and cve_data.description != "":
+            description = cve_data.description
+        if cve_data.cvss_v3_vector is not None and cve_data.cvss_v3_vector != "":
+            cvss_v3_vector = cve_data.cvss_v3_vector
+    risk_rating = calculate_risk_rating(risk_ratings)
 
+    return cve_service_api.CVEDATA(
+        risk=risk_rating, description=description, cvss_v3_vector=cvss_v3_vector
+    )
+
+
+def calculate_risk_rating(risk_ratings: list[str]) -> str:
+    """Calculate the risk rating of a given cve ids of a vulnerability
+    Args:
+        risk_ratings: list of risk ratings
+    Returns:
+        Risk rating of a vulnerability
+    """
+    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x) or "UNKNOWN", reverse=False  # type: ignore
+        risk_ratings, key=lambda x: priority_levels.get(x) or "UNKNOWN", reverse=False
     )
 
     for rating in sorted_ratings:

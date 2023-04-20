@@ -1,4 +1,4 @@
-pylintoutput_file_path
+pylint
 pytest
 pytest-mock
 black
