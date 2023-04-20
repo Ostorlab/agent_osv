@@ -33,5 +33,6 @@ jobs:
           python -m pip install -r tests/test-requirement.txt
       - name: Runnning tests with pytest.
         run: |
+          find src
           set -o pipefail
           pytest -m "not docker"
