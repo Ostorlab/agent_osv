@@ -128,7 +128,7 @@ def construct_technical_detail(
     return technical_detail
 
 
-def read_output_file(output_file_path: str) -> dict[Any, Any]:
+def read_output_file(output_file_path: str) -> dict[str, Any]:
     """Read the OSV scanner output from json file and return dict
     Args:
         output_file_path: the OSV scanner output file
@@ -136,7 +136,7 @@ def read_output_file(output_file_path: str) -> dict[Any, Any]:
         Dict representation of the json object
     """
     with open(output_file_path, "r", encoding="utf-8") as of:
-        data: dict[str, str] = json.load(of)
+        data: dict[str, Any] = json.load(of)
 
     return data
 
@@ -154,7 +154,7 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
     for result in results:
         file_type = result.get("source", {}).get("type", "")
         file_path = result.get("source", {}).get("path", "")
-        packages = result.get("packages", {})
+        packages = result.get("packages", [{}])
         for package in packages:
             package_name = package.get("package", {}).get("name", "")
             package_version = package.get("package", {}).get("version", "")
