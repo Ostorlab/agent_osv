@@ -26,10 +26,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Show project tree
-        run: |
-          pwd
-          ls -la
       - name: Install dependencies.
         run: |
           python -m pip install --upgrade pip
@@ -38,4 +34,6 @@ jobs:
       - name: Runnning tests with pytest.
         run: |
           set -o pipefail
+          pwd
+          ls -la
           pytest -m "not docker"
