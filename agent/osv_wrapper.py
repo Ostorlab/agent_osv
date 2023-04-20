@@ -27,7 +27,7 @@ class OSVWrapper:
         self.path = path
         self.extension: str | None = ""
 
-    def is_valid_file(self) -> bool:
+    def validate_and_set_lock_file_extension(self) -> bool:
         """check whether the file is valid lock file or not
         Args:
             content: the file content
@@ -68,7 +68,6 @@ class OSVWrapper:
             return None
 
         decoded_content = self.content.decode("utf-8")
-        logger.info("null path")
         file_path = f"/tmp/lock_file{self.extension}"
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(decoded_content)
