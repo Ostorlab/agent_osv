@@ -7,9 +7,9 @@ name: Pytest.
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ main ]
   pull_request:
-    branches: [ '*' ]
+    branches: [ "*" ]
 
 jobs:
   build:
