@@ -16,8 +16,7 @@ from agent import osv_agent
 def scan_message_file() -> message.Message:
     """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
-    parent_abs_path = pathlib.Path.cwd().parent.resolve()
-    path = f"{parent_abs_path}/files/package_lock.json"
+    path = f"{pathlib.Path(__file__).parent.parent}/tests/files/package_lock.json"
     with open(path, "rb") as lock_file:
         msg_data = {"content": lock_file.read(), "path": path}
     return message.Message.from_data(selector, data=msg_data)
