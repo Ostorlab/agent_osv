@@ -64,15 +64,12 @@ class OSVAgent(
         if content is None or content == b"":
             return
         self.osv_wrapper = osv_wrapper.OSVWrapper(content=content, path=path)
-        try:
-            if (
-                self.osv_wrapper is not None
-                and self.osv_wrapper.validate_and_set_lock_file_extension() is False
-            ):
-                logger.info("Invalid file: %s", path)
-                return
-        except NotImplementedError:
-            logger.info("NotImplementedError")
+        if (
+            self.osv_wrapper is not None
+            and self.osv_wrapper.validate_and_set_lock_file_extension() is False
+        ):
+            logger.info("Invalid file: %s", path)
+            return
 
         self._run_osv(path, content)
 
