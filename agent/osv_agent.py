@@ -72,7 +72,7 @@ class OSVAgent(
                 logger.info("Invalid file: %s", path)
                 return
         except NotImplementedError:
-            logger.info("NotImplementedError")
+            logger.info("the check of file validity not implemented yet")
 
         self._run_osv(path, content)
 
