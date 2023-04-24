@@ -27,10 +27,8 @@ class OSVFileHandler:
         self.path = path
         self.extension: str | None = ""
 
-    def validate_and_set_lock_file_extension(self) -> bool:
+    def set_extension_and_check_if_valid_lock_file(self) -> bool:
         """check whether the file is valid lock file or not
-        Args:
-            content: the file content
         Returns:
             Boolean whether the file is valid
         """
@@ -47,7 +45,6 @@ class OSVFileHandler:
 
     def get_file_type(self) -> str | None:
         """Get the file extension
-        Args:
         Returns:
             The file extension
         """
@@ -60,7 +57,6 @@ class OSVFileHandler:
 
     def write_content_to_file(self) -> str | None:
         """Write the file content to a file
-        Args:
         Returns:
             The file path
         """

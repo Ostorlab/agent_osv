@@ -56,10 +56,10 @@ class OSVAgent(
         path = message.data.get("path")
         if content is None or content == b"":
             return
-        self.osv_wrapper = osv_wrapper.OSVWrapper(content=content, path=path)
+        self.osv_wrapper = osv_wrapper.OSVFileHandler(content=content, path=path)
         if (
             self.osv_wrapper is not None
-            and self.osv_wrapper.validate_and_set_lock_file_extension() is False
+            and self.osv_wrapper.set_extension_and_check_if_valid_lock_file() is False
         ):
             logger.info("Invalid file: %s", path)
             return
@@ -80,14 +80,14 @@ class OSVAgent(
         if file_path is None:
             logger.info("The file path is empty")
             return
-        OSV_COMMAND.append(file_path)
-        run_command(OSV_COMMAND)
+        self.command.append(file_path)
+        _run_command(self.command)
 
     def _emit_results(self, json_output: str) -> None:
         raise NotImplementedError
 
 
-def run_command(command: list[str] | str) -> bytes | None:
+def _run_command(command: list[str] | str) -> bytes | None:
     """Run OSV command on the provided file
     Args:
         command to run
