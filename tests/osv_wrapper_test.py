@@ -23,9 +23,7 @@ def testOSVWrapper_withInvalidLockFile_returnFalse() -> None:
     assert osv_scanner_wrapper.set_extension_and_check_if_valid_lock_file() is False
 
 
-def testOSVWrapper_withLockFilePath_returnFileType(
-    valid_lock_file_path: str
-) -> None:
+def testOSVWrapper_withLockFilePath_returnFileType(valid_lock_file_path: str) -> None:
     osv_scanner_wrapper = osv_wrapper.OSVFileHandler(None, valid_lock_file_path)
     assert osv_scanner_wrapper.get_file_type() == ".lock"
 
