@@ -43,10 +43,7 @@ class OSVAgent(
         agent.Agent.__init__(self, agent_definition, agent_settings)
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self.osv_wrapper: osv_wrapper.OSVWrapper | None = None
-
-    def start(self) -> None:
-        logger.info("running start")
+        self._osv_wrapper: osv_wrapper.OSVFileHandler | None = None
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
@@ -60,11 +57,11 @@ class OSVAgent(
         path = message.data.get("path")
         if content is None or content == b"":
             return
-        self.osv_wrapper = osv_wrapper.OSVWrapper(content=content, path=path)
+        self._osv_wrapper = osv_wrapper.OSVFileHandler(content=content, path=path)
         try:
             if (
-                self.osv_wrapper is not None
-                and self.osv_wrapper.is_valid_file() is False
+                self._osv_wrapper is not None
+                and self._osv_wrapper.is_valid_file() is False
             ):
                 logger.info("Invalid file: %s", path)
                 return
@@ -82,19 +79,19 @@ class OSVAgent(
         if content is None or content == b"":
             return
 
-        if self.osv_wrapper is not None and file_path is None:
-            file_path = self.osv_wrapper.write_content_to_file()
+        if self._osv_wrapper is not None and file_path is None:
+            file_path = self._osv_wrapper.write_content_to_file()
         if file_path is None:
             logger.info("The file path is empty")
             return
         OSV_COMMAND.append(file_path)
-        run_command(OSV_COMMAND)
+        _run_command(OSV_COMMAND)
 
-    def _emit_results(self, json_output: str) -> None:
+    def _emit_results(self, json_output: str) -> NotImplementedError:
         raise NotImplementedError
 
 
-def run_command(command: list[str] | str) -> bytes | None:
+def _run_command(command: list[str] | str) -> bytes | None:
     """Run OSV command on the provided file
     Args:
         command to run
