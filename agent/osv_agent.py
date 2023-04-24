@@ -20,13 +20,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-OSV_COMMAND = [
-    "/usr/local/bin/osv-scanner",
-    "--format",
-    "json",
-    "--sbom=",
-]
-
 
 class OSVAgent(
     agent.Agent,
@@ -44,6 +37,7 @@ class OSVAgent(
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
         self._osv_wrapper: osv_wrapper.OSVFileHandler | None = None
+        self.command: list[str] = ["/usr/local/bin/osv-scanner", "--format", "json", "--sbom="]
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
@@ -84,8 +78,8 @@ class OSVAgent(
         if file_path is None:
             logger.info("The file path is empty")
             return
-        OSV_COMMAND.append(file_path)
-        _run_command(OSV_COMMAND)
+        self.command.append(file_path)
+        _run_command(self.command)
 
     def _emit_results(self, json_output: str) -> NotImplementedError:
         raise NotImplementedError

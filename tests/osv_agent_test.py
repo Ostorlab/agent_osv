@@ -1,5 +1,4 @@
 """Unittests for OSV agent."""
-import subprocess
 from typing import Union
 
 from ostorlab.agent.message import message
