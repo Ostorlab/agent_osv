@@ -21,13 +21,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-OSV_COMMAND = [
-    "/usr/local/bin/osv-scanner",
-    "--format",
-    "json",
-    "--sbom=",
-]
-
 OUTPUT_PATH = "/tmp/osv_output.json"
 
 
@@ -46,10 +39,13 @@ class OSVAgent(
         agent.Agent.__init__(self, agent_definition, agent_settings)
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self.osv_wrapper: osv_wrapper.OSVWrapper | None = None
-
-    def start(self) -> None:
-        logger.info("running start")
+        self._osv_wrapper: osv_wrapper.OSVFileHandler | None = None
+        self.command: list[str] = [
+            "/usr/local/bin/osv-scanner",
+            "--format",
+            "json",
+            "--sbom=",
+        ]
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
@@ -63,10 +59,10 @@ class OSVAgent(
         path = message.data.get("path")
         if content is None or content == b"":
             return
-        self.osv_wrapper = osv_wrapper.OSVWrapper(content=content, path=path)
+        self.osv_wrapper = osv_wrapper.OSVFileHandler(content=content, path=path)
         if (
             self.osv_wrapper is not None
-            and self.osv_wrapper.validate_and_set_lock_file_extension() is False
+            and self.osv_wrapper.set_extension_and_check_if_valid_lock_file() is False
         ):
             logger.info("Invalid file: %s", path)
             return
@@ -88,10 +84,11 @@ class OSVAgent(
         if file_path is None:
             logger.info("The file path is empty")
             return
-        OSV_COMMAND.append(file_path)
-        OSV_COMMAND.append(">")
-        OSV_COMMAND.append(OUTPUT_PATH)
-        run_command(OSV_COMMAND)
+        self.command.append(file_path)
+        self.command.append(file_path)
+        self.command.append(">")
+        self.command.append(OUTPUT_PATH)
+        run_command(self.command)
         self._emit_results()
 
     def _emit_results(self) -> None:
@@ -105,7 +102,7 @@ class OSVAgent(
             )
 
 
-def run_command(command: list[str] | str) -> bytes | None:
+def _run_command(command: list[str] | str) -> bytes | None:
     """Run OSV command on the provided file
     Args:
         command to run

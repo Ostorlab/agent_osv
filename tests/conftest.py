@@ -57,7 +57,16 @@ def test_agent(
 
 @pytest.fixture
 def valid_lock_file_content() -> bytes:
-    return b"valid_lock_file_content"
+    return b""""unicode-match-property-ecmascript": {
+      "version": "1.0.4",
+      "resolved": "https://registry.npmjs.org/unicode-match-property-ecmascript/-/unicode-match-property-ecmascript-1.0.4.tgz",
+      "integrity": "sha512-L4Qoh15vTfntsn4P1zqnHulG0LdXgjSO035fEpdtp6YxXhMT51Q6vgM5lYdG/5X3MjS+k/Y9Xw4SFCY9IkR0rg==",
+      "dev": true,
+      "requires": {
+        "unicode-canonical-property-names-ecmascript": "^1.0.4",
+        "unicode-property-aliases-ecmascript": "^1.0.4"
+      }
+    }"""
 
 
 @pytest.fixture

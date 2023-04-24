@@ -21,7 +21,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     """Unittest for the full life cycle of the agent:
     case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
-    cve_data = cve_service_api.CVEDATA(
+    cve_data = cve_service_api.CVE(
         risk="HIGH", description="description", cvss_v3_vector=None
     )
 

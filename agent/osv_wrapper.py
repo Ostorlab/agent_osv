@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt", ".mod"]
 
 
-class OSVWrapper:
+class OSVFileHandler:
     """OSV Wrapper responsible for running OSV on the appropriate file"""
 
     def __init__(self, content: bytes | None, path: str | None):
@@ -52,10 +52,8 @@ class OSVWrapper:
         self.path = path
         self.extension: str | None = ""
 
-    def validate_and_set_lock_file_extension(self) -> bool:
+    def set_extension_and_check_if_valid_lock_file(self) -> bool:
         """check whether the file is valid lock file or not
-        Args:
-            content: the file content
         Returns:
             Boolean whether the file is valid
         """
@@ -72,7 +70,6 @@ class OSVWrapper:
 
     def get_file_type(self) -> str | None:
         """Get the file extension
-        Args:
         Returns:
             The file extension
         """
@@ -85,7 +82,6 @@ class OSVWrapper:
 
     def write_content_to_file(self) -> str | None:
         """Write the file content to a file
-        Args:
         Returns:
             The file path
         """
