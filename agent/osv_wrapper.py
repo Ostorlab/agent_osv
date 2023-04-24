@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt", ".mod"]
 
 
-class OSVWrapper:
+class OSVFileHandler:
     """OSV Wrapper responsible for running OSV on the appropriate file"""
 
     def __init__(self, content: bytes | None, path: str | None):

@@ -116,7 +116,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     """
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent.run_command",
+        "agent.osv_agent._run_command",
         return_value=JSON_OUTPUT,
     )
 
@@ -140,7 +140,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent.run_command",
+        "agent.osv_agent._run_command",
         return_value=JSON_OUTPUT,
     )
 
@@ -161,7 +161,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent.run_command",
+        "agent.osv_agent._run_command",
         return_value=JSON_OUTPUT,
     )
 

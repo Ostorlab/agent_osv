@@ -20,13 +20,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-OSV_COMMAND = [
-    "/usr/local/bin/osv-scanner",
-    "--format",
-    "json",
-    "--sbom=",
-]
-
 
 class OSVAgent(
     agent.Agent,
@@ -43,10 +36,13 @@ class OSVAgent(
         agent.Agent.__init__(self, agent_definition, agent_settings)
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self.osv_wrapper: osv_wrapper.OSVWrapper | None = None
-
-    def start(self) -> None:
-        logger.info("running start")
+        self._osv_wrapper: osv_wrapper.OSVFileHandler | None = None
+        self.command: list[str] = [
+            "/usr/local/bin/osv-scanner",
+            "--format",
+            "json",
+            "--sbom=",
+        ]
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
