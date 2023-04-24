@@ -8,7 +8,7 @@ from agent import cve_service_api
 def testGetCveData_withResponse_returnRiskRating(
     mocker: plugin.MockerFixture,
 ) -> None:
-    cve_data = cve_service_api.CVEDATA(
+    cve_data = cve_service_api.CVE(
         risk="HIGH", description="description", cvss_v3_vector=None
     )
 

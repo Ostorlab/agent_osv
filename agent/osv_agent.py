@@ -88,7 +88,7 @@ class OSVAgent(
         self.command.append(file_path)
         self.command.append(">")
         self.command.append(OUTPUT_PATH)
-        run_command(self.command)
+        _run_command(self.command)
         self._emit_results()
 
     def _emit_results(self) -> None:

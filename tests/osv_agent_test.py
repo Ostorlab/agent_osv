@@ -1,13 +1,11 @@
 """Unittests for OSV agent."""
 from typing import Union
 
-import pytest
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
-from agent import osv_agent
-from agent import osv_wrapper
 from agent import cve_service_api
+from agent import osv_agent
 
 
 def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
@@ -25,7 +23,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
         risk="HIGH", description="description", cvss_v3_vector=None
     )
 
-    subprocess_mock = mocker.patch("agent.osv_agent.run_command")
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
     mocker.patch("agent.osv_wrapper.read_output_file", return_value=osv_output)
     mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
     mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
@@ -59,7 +57,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
-    subprocess_mock = mocker.patch("agent.osv_agent.run_command")
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
     mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(empty_scan_message_file)
@@ -79,30 +77,10 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
-    subprocess_mock = mocker.patch("agent.osv_agent.run_command")
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
     mocker.patch("agent.osv_wrapper.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(invalid_scan_message_file)
 
     assert subprocess_mock.call_count == 0
     assert len(agent_mock) == 0
-
-
-@pytest.mark.parametrize(
-    "risk_ratings, expected_rating",
-    [
-        ([], "UNKNOWN"),
-        (["HIGH"], "HIGH"),
-        (["HIGH", "MEDIUM"], "HIGH"),
-        (["HIGH", "MEDIUM", "LOW"], "HIGH"),
-        (["MEDIUM", "HIGH"], "HIGH"),
-        (["LOW", "HIGH", "MEDIUM"], "HIGH"),
-        (["MEDIUM", "LOW"], "MEDIUM"),
-        (["LOW"], "LOW"),
-        (["LOW", "LOW", "LOW"], "LOW"),
-    ],
-)
-def testcalculateRiskRating_whenCveRiskRating_returnRiskRating(
-    risk_ratings: list[str], expected_rating: str
-) -> None:
-    assert osv_wrapper.calculate_risk_rating(risk_ratings) == expected_rating

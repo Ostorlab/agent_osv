@@ -197,12 +197,12 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
                 )
 
 
-def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVEDATA:
+def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
     """Set cve summary including risk rating, description and cvss v3 vector
     Args:
         cve_ids: cve ids of a vulnerability
     Returns:
-        CVEDATA of cve information
+        CVE of cve information
     """
     risk_ratings = []
     description = ""
@@ -217,7 +217,7 @@ def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVEDATA:
             cvss_v3_vector = cve_data.cvss_v3_vector
     risk_rating = calculate_risk_rating(risk_ratings)
 
-    return cve_service_api.CVEDATA(
+    return cve_service_api.CVE(
         risk=risk_rating, description=description, cvss_v3_vector=cvss_v3_vector
     )
 

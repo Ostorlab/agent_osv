@@ -9,13 +9,13 @@ REQUEST_TIMEOUT = 10
 
 
 @dataclasses.dataclass
-class CVEDATA:
+class CVE:
     risk: str
     description: str
     cvss_v3_vector: str | None
 
 
-def get_cve_data_from_api(cve_id: str) -> CVEDATA:
+def get_cve_data_from_api(cve_id: str) -> CVE:
     """Given a CVE ID, retrieve the risk rating from the MITRE CVE API.
     Args:
         cve_id
@@ -28,7 +28,7 @@ def get_cve_data_from_api(cve_id: str) -> CVEDATA:
     response.raise_for_status()  # raises a HTTPError if response code is not 2XX
     data = json.loads(response.text)
 
-    return CVEDATA(
+    return CVE(
         risk=data.get("result", {})
         .get("CVE_Items", {})[0]
         .get("impact", {})
