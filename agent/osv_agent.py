@@ -79,7 +79,7 @@ class OSVAgent(
 
         if file_path is not None:
             self._command.append(file_path)
-            _run_command(self._command)
+        _run_command(self._command)
 
     def _emit_results(self, json_output: str) -> NotImplementedError:
         raise NotImplementedError
