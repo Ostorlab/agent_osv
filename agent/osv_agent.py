@@ -9,7 +9,7 @@ from ostorlab.agent.mixins import agent_persist_mixin
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
-from agent import osv_wrapper
+from agent import osv_file_handler
 
 logging.basicConfig(
     format="%(message)s",
@@ -36,8 +36,8 @@ class OSVAgent(
         agent.Agent.__init__(self, agent_definition, agent_settings)
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self._osv_wrapper: osv_wrapper.OSVFileHandler | None = None
-        self.command: list[str] = [
+        self._osv_file_handler: osv_file_handler.OSVFileHandler
+        self._command: list[str] = [
             "/usr/local/bin/osv-scanner",
             "--format",
             "json",
@@ -48,43 +48,38 @@ class OSVAgent(
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
-        if message.selector != "v3.asset.file":
-            return
 
         logger.info("processing message of selector : %s", message.selector)
         content = message.data.get("content")
         path = message.data.get("path")
         if content is None or content == b"":
             return
-        self._osv_wrapper = osv_wrapper.OSVFileHandler(content=content, path=path)
+        self._osv_file_handler = osv_file_handler.OSVFileHandler(
+            content=content, path=path
+        )
         try:
-            if (
-                self._osv_wrapper is not None
-                and self._osv_wrapper.is_valid_file() is False
-            ):
-                logger.info("Invalid file: %s", path)
+            if self._osv_file_handler.is_valid_file() is False:
+                logger.error("Invalid file: %s", path)
                 return
         except NotImplementedError:
-            logger.info("the check of file validity not implemented yet")
+            logger.info("The check of file validity not implemented yet")
 
-        self._run_osv(path, content)
+        self._run_osv()
 
-    def _run_osv(self, file_path: str | None, content: bytes | None) -> None:
-        """perform the scan on the file
-        Args:
-            file_path: the path to the file
-            content: file content
-        """
-        if content is None or content == b"":
-            return
+    def _run_osv(self) -> None:
+        """Perform the scan on the file"""
+        file_path: str | None = None
+        try:
+            file_path = self._osv_file_handler.write_content_to_file()
+            if file_path is None:
+                logger.info("The file path is empty")
+                return
+        except NotImplementedError:
+            logger.info("Write_content_to_file not implemented yet")
 
-        if self._osv_wrapper is not None and file_path is None:
-            file_path = self._osv_wrapper.write_content_to_file()
-        if file_path is None:
-            logger.info("The file path is empty")
-            return
-        self.command.append(file_path)
-        _run_command(self.command)
+        if file_path is not None:
+            self._command.append(file_path)
+            _run_command(self._command)
 
     def _emit_results(self, json_output: str) -> NotImplementedError:
         raise NotImplementedError

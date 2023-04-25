@@ -112,7 +112,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
     subprocess_mock = mocker.patch(
@@ -136,7 +136,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
     subprocess_mock = mocker.patch(
@@ -157,7 +157,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
     subprocess_mock = mocker.patch(
