@@ -41,8 +41,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt", ".mod"]
-
 
 class OSVFileHandler:
     """OSV Wrapper responsible for running OSV on the appropriate file"""
