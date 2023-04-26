@@ -62,9 +62,6 @@ class OSVFileHandler:
             return mimetypes.guess_extension(mime)
         return None
 
-    def build_putput(self, output: Optional[bytes]) -> None:
-        raise NotImplementedError
-
 
 def construct_technical_detail(
     package_name: str,
