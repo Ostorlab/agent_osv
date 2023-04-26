@@ -50,22 +50,6 @@ class OSVFileHandler:
         self.path = path
         self.extension: str | None = ""
 
-    def set_extension_and_check_if_valid_lock_file(self) -> bool:
-        """check whether the file is valid lock file or not
-        Returns:
-            Boolean whether the file is valid
-        """
-        if self.content is None or self.content == b"":
-            logger.error("Received empty content.")
-            return False
-
-        self.extension = self.get_file_type()
-        if self.extension not in LOCK_FILES_EXTENSIONS:
-            logger.error("This type of file not supported.")
-            return False
-
-        return True
-
     def get_file_type(self) -> str | None:
         """Get the file extension
         Returns:
@@ -77,20 +61,6 @@ class OSVFileHandler:
             mime = magic.from_buffer(self.content, mime=True)
             return mimetypes.guess_extension(mime)
         return None
-
-    def write_content_to_file(self) -> str | None:
-        """Write the file content to a file
-        Returns:
-            The file path
-        """
-        if self.content is None or self.content != b"":
-            return None
-
-        decoded_content = self.content.decode("utf-8")
-        file_path = f"/tmp/lock_file{self.extension}"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(decoded_content)
-        return file_path
 
     def build_putput(self, output: Optional[bytes]) -> None:
         raise NotImplementedError
@@ -122,7 +92,7 @@ def construct_technical_detail(
     return technical_detail
 
 
-def read_output_file(output_file_path: str) -> dict[str, Any]:
+def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
     """Read the OSV scanner output from json file and return dict
     Args:
         output_file_path: the OSV scanner output file
@@ -143,7 +113,7 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
         Vulnerability entry.
     """
 
-    data = read_output_file(output_file_path)
+    data = read_output_file_as_dict(output_file_path)
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
         file_type = result.get("source", {}).get("type", "")

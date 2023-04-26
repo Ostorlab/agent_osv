@@ -1,7 +1,7 @@
 """Unittests for calculating risk rating."""
 import pytest
 
-from agent import osv_wrapper
+from agent import osv_file_handler
 
 
 @pytest.mark.parametrize(
@@ -21,4 +21,4 @@ from agent import osv_wrapper
 def testcalculateRiskRating_whenCveRiskRating_returnRiskRating(
     risk_ratings: list[str], expected_rating: str
 ) -> None:
-    assert osv_wrapper.calculate_risk_rating(risk_ratings) == expected_rating
+    assert osv_file_handler.calculate_risk_rating(risk_ratings) == expected_rating

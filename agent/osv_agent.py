@@ -1,6 +1,7 @@
 """OSV agent implementation"""
 import logging
 import subprocess
+import tempfile
 
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
@@ -11,6 +12,7 @@ from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 from agent import osv_file_handler
 
+
 logging.basicConfig(
     format="%(message)s",
     datefmt="[%X]",
@@ -20,7 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-OUTPUT_PATH = "/tmp/osv_output.json"
+SBOM_OUTPUT_PATH = "/tmp/sbom_osv_output.json"
+LOCKFILE_OUTPUT_PATH = "/tmp/lockfile_osv_output.json"
 
 
 class OSVAgent(
@@ -43,7 +46,6 @@ class OSVAgent(
             "/usr/local/bin/osv-scanner",
             "--format",
             "json",
-            "--sbom=",
         ]
 
     def process(self, message: m.Message) -> None:
@@ -59,32 +61,55 @@ class OSVAgent(
         self._osv_file_handler = osv_file_handler.OSVFileHandler(
             content=content, path=path
         )
-        if self._osv_file_handler.set_extension_and_check_if_valid_lock_file() is False:
-            logger.info("Invalid file: %s", path)
-            return
 
-        self._run_osv()
+        self._run_osv(content)
 
-    def _run_osv(self) -> None:
+    def _run_osv(self, content: bytes) -> None:
         """perform the scan on the file
         Args:
-            file_path: the path to the file
             content: file content
         """
-        file_path = self._osv_file_handler.write_content_to_file()
-        if file_path is None:
-            logger.info("The file path is empty")
-            return
-        self._command.append(file_path)
+        extension = self._osv_file_handler.get_file_type()
+        decoded_content = content.decode("utf-8")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=extension) as file_path:
+            file_path.write(decoded_content)
+            self._run_sbom_command(file_path.name)
+            self._run_lockfile_command(file_path.name)
+            self._emit_results()
+
+    def _run_sbom_command(self, file_path: str) -> None:
+        """build the sbom command and run it
+        Args:
+            file_path: the sbom file path
+        """
+        self._command.append("--sbom=")
         self._command.append(file_path)
         self._command.append(">")
-        self._command.append(OUTPUT_PATH)
+        self._command.append(SBOM_OUTPUT_PATH)
         _run_command(self._command)
-        self._emit_results()
+
+    def _run_lockfile_command(self, file_path: str) -> None:
+        """build the lockfile command and run it
+        Args:
+            file_path: the lockfile file path
+        """
+        self._command.append("--lockfile")
+        self._command.append(file_path)
+        self._command.append(">")
+        self._command.append(LOCKFILE_OUTPUT_PATH)
+        _run_command(self._command)
 
     def _emit_results(self) -> None:
         """Parses results and emits vulnerabilities."""
-        for vuln in osv_file_handler.parse_results(OUTPUT_PATH):
+        for vuln in osv_file_handler.parse_results(SBOM_OUTPUT_PATH):
+            self.report_vulnerability(
+                entry=vuln.entry,
+                technical_detail=vuln.technical_detail,
+                risk_rating=vuln.risk_rating,
+                vulnerability_location=vuln.vulnerability_location,
+            )
+
+        for vuln in osv_file_handler.parse_results(LOCKFILE_OUTPUT_PATH):
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
