@@ -4,7 +4,7 @@ import json
 import logging
 import mimetypes
 import os
-from typing import Optional, Iterator, Any
+from typing import Iterator, Any
 
 import magic
 from ostorlab.agent.kb import kb
