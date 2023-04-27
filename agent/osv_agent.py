@@ -87,7 +87,7 @@ class OSVAgent(
         Args:
             file_path: the sbom file path
         """
-        command = self._constructed_command(sbomfile_path=file_path)
+        command = self._construct_command(sbomfile_path=file_path)
         if command is not None:
             return _run_command(command)
         return None
@@ -97,7 +97,7 @@ class OSVAgent(
         Args:
             file_path: the lockfile file path
         """
-        command = self._constructed_command(lockfile_path=file_path)
+        command = self._construct_command(lockfile_path=file_path)
         if command is not None:
             return _run_command(command)
         return None
