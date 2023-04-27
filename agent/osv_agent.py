@@ -42,11 +42,6 @@ class OSVAgent(
         agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
         agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
         self._osv_file_handler: osv_file_handler.OSVFileHandler
-        self._command: list[str] = [
-            "/usr/local/bin/osv-scanner",
-            "--format",
-            "json",
-        ]
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
