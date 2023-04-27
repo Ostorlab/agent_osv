@@ -102,7 +102,7 @@ class OSVAgent(
             return _run_command(command)
         return None
 
-    def _constructed_command(
+    def _construct_command(
         self, lockfile_path: str | None = None, sbomfile_path: str | None = None
     ) -> list[str] | None:
         """Constructs OSV command with correct flag based on the input.
