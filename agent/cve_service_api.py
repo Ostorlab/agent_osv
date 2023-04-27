@@ -5,7 +5,7 @@ import requests
 import json
 
 CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cve/1.0/"
-REQUEST_TIMEOUT = 10
+REQUEST_TIMEOUT = 60
 
 
 @dataclasses.dataclass
@@ -18,9 +18,9 @@ class CVE:
 def get_cve_data_from_api(cve_id: str) -> CVE:
     """Given a CVE ID, retrieve the risk rating from the MITRE CVE API.
     Args:
-        cve_id
+        cve_id: the cve id to obtain its details
     Returns:
-        None if the CVE ID is not found.
+        CVE object.
     """
     url = f"{CVE_MITRE_BASE_URL}{cve_id}"
 

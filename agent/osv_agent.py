@@ -57,6 +57,7 @@ class OSVAgent(
         content = message.data.get("content")
         path = message.data.get("path")
         if content is None or content == b"":
+            logger.warning("The file content is empty")
             return
         self._osv_file_handler = osv_file_handler.OSVFileHandler(
             content=content, path=path
@@ -65,7 +66,7 @@ class OSVAgent(
         self._run_osv(content)
 
     def _run_osv(self, content: bytes) -> None:
-        """perform the scan on the file
+        """Perform the osv scan with two flags --sbom & --lockfile on a lockfile
         Args:
             content: file content
         """
@@ -73,31 +74,68 @@ class OSVAgent(
         decoded_content = content.decode("utf-8")
         with tempfile.NamedTemporaryFile(mode="w", suffix=extension) as file_path:
             file_path.write(decoded_content)
-            self._run_sbom_command(file_path.name)
-            self._run_lockfile_command(file_path.name)
+            sbom_output = self._run_sbom_command(file_path.name)
+            lockfile_output = self._run_lockfile_command(file_path.name)
+
+            if sbom_output is not None:
+                with open(SBOM_OUTPUT_PATH, "w", encoding="utf-8") as sbom_file:
+                    sbom_file.write(sbom_output)
+
+            if lockfile_output is not None:
+                with open(SBOM_OUTPUT_PATH, "w", encoding="utf-8") as lock_file:
+                    lock_file.write(lockfile_output)
+
             self._emit_results()
 
-    def _run_sbom_command(self, file_path: str) -> None:
+    def _run_sbom_command(self, file_path: str) -> str | None:
         """build the sbom command and run it
         Args:
             file_path: the sbom file path
         """
-        self._command.append("--sbom=")
-        self._command.append(file_path)
-        self._command.append(">")
-        self._command.append(SBOM_OUTPUT_PATH)
-        _run_command(self._command)
+        command = self._constructed_command(sbomfile_path=file_path)
+        if command is not None:
+            return _run_command(command)
+        return None
 
-    def _run_lockfile_command(self, file_path: str) -> None:
+    def _run_lockfile_command(self, file_path: str) -> str | None:
         """build the lockfile command and run it
         Args:
             file_path: the lockfile file path
         """
-        self._command.append("--lockfile")
-        self._command.append(file_path)
-        self._command.append(">")
-        self._command.append(LOCKFILE_OUTPUT_PATH)
-        _run_command(self._command)
+        command = self._constructed_command(lockfile_path=file_path)
+        if command is not None:
+            return _run_command(command)
+        return None
+
+    def _constructed_command(
+        self, lockfile_path: str | None = None, sbomfile_path: str | None = None
+    ) -> list[str] | None:
+        """Constructs OSV command with correct flag based on the input.
+        Args:
+            lockfile_path: Path to the lockfile to be scanned.
+            sbomfile_path: Path to the sbom file to be scanned.
+        Returns:
+            A list containing the constructed command based on the input parameters..
+        """
+        if lockfile_path is not None:
+            return [
+                "/usr/local/bin/osv-scanner",
+                "--format",
+                "json",
+                "--lockfile",
+                lockfile_path,
+            ]
+        if sbomfile_path is not None:
+            return [
+                "/usr/local/bin/osv-scanner",
+                "--format",
+                "json",
+                "--sbom",
+                sbomfile_path,
+            ]
+
+        logger.warning("Can't construct command")
+        return None
 
     def _emit_results(self) -> None:
         """Parses results and emits vulnerabilities."""
@@ -118,13 +156,13 @@ class OSVAgent(
             )
 
 
-def _run_command(command: list[str] | str) -> bytes | None:
+def _run_command(command: list[str] | str) -> str | None:
     """Run OSV command on the provided file
     Args:
         command to run
     """
     try:
-        output = subprocess.run(command, capture_output=True, check=True)
+        output = subprocess.run(command, capture_output=True, text=True, check=False)
     except subprocess.CalledProcessError as e:
         logger.error(
             "An error occurred while running the command. Error message: %s", e

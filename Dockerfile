@@ -13,6 +13,7 @@ COPY requirement.txt /requirement.txt
 RUN pip install --prefix=/install -r /requirement.txt
 
 FROM base
+RUN apk add libmagic
 COPY --from=builder /install /usr/local
 COPY --from=go_stage /go/bin/osv-scanner /usr/local/bin/osv-scanner
 

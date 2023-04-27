@@ -14,7 +14,8 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
-    osv_output: dict[str, str],
+    osv_output_as_dict: dict[str, str],
+    osv_output: str,
 ) -> None:
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
@@ -23,9 +24,12 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
         risk="HIGH", description="description", cvss_v3_vector=None
     )
 
-    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
+    subprocess_mock = mocker.patch(
+        "agent.osv_agent._run_command", return_value=osv_output
+    )
     mocker.patch(
-        "agent.osv_file_handler.read_output_file_as_dict", return_value=osv_output
+        "agent.osv_file_handler.read_output_file_as_dict",
+        return_value=osv_output_as_dict,
     )
     mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
     mocker.patch("agent.osv_file_handler.calculate_risk_rating", return_value="HIGH")
