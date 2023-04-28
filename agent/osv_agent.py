@@ -4,14 +4,12 @@ import subprocess
 import tempfile
 
 from ostorlab.agent import agent
-from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_persist_mixin
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
-from agent import osv_file_handler
 
+from agent import osv_file_handler
 
 logging.basicConfig(
     format="%(message)s",
@@ -33,21 +31,11 @@ class OSVAgent(
 ):
     """OSV agent."""
 
-    def __init__(
-        self,
-        agent_definition: agent_definitions.AgentDefinition,
-        agent_settings: runtime_definitions.AgentSettings,
-    ) -> None:
-        agent.Agent.__init__(self, agent_definition, agent_settings)
-        agent_persist_mixin.AgentPersistMixin.__init__(self, agent_settings)
-        agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self._osv_file_handler: osv_file_handler.OSVFileHandler
-
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
-
+        self._osv_file_handler: osv_file_handler.OSVFileHandler
         logger.info("processing message of selector : %s", message.selector)
         content = message.data.get("content")
         path = message.data.get("path")

@@ -8,12 +8,12 @@ from pytest_mock import plugin
 from agent import osv_file_handler
 
 
-def testOSVWrapper_withLockFilePath_returnFileType(valid_lock_file_path: str) -> None:
+def testGetFileType_withLockFilePath_returnFileType(valid_lock_file_path: str) -> None:
     osv_scanner_wrapper = osv_file_handler.OSVFileHandler(None, valid_lock_file_path)
     assert osv_scanner_wrapper.get_file_type() == ".lock"
 
 
-def testOSVWrapper_withLockFileContent_returnFileType(
+def testGetFileType_withLockFileContent_returnFileType(
     mocker: plugin.MockerFixture, valid_lock_file_content: bytes
 ) -> None:
     from_buffer_mock = mocker.patch("agent.osv_file_handler.magic.from_buffer")

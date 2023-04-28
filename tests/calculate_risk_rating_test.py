@@ -16,6 +16,8 @@ from agent import osv_file_handler
         (["MEDIUM", "LOW"], "MEDIUM"),
         (["LOW"], "LOW"),
         (["LOW", "LOW", "LOW"], "LOW"),
+        (["high"], "HIGH"),
+        (["x"], "UNKNOWN"),
     ],
 )
 def testcalculateRiskRating_whenCveRiskRating_returnRiskRating(

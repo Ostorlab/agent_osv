@@ -3,6 +3,7 @@ import dataclasses
 
 import requests
 import json
+import tenacity
 
 CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cve/1.0/"
 REQUEST_TIMEOUT = 60
@@ -15,6 +16,16 @@ class CVE:
     cvss_v3_vector: str | None
 
 
+default_cve = CVE(risk="UNKNOWN", description="", cvss_v3_vector="")
+
+
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(3),
+    retry=tenacity.retry_if_exception_type(
+        (requests.ConnectionError, requests.HTTPError)
+    ),
+    retry_error_callback=lambda retry_state: default_cve,
+)
 def get_cve_data_from_api(cve_id: str) -> CVE:
     """Given a CVE ID, retrieve the risk rating from the MITRE CVE API.
     Args:
@@ -25,7 +36,6 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
     url = f"{CVE_MITRE_BASE_URL}{cve_id}"
 
     response = requests.get(url, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()  # raises a HTTPError if response code is not 2XX
     data = json.loads(response.text)
 
     return CVE(

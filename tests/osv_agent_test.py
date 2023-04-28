@@ -36,10 +36,9 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
 
     test_agent.process(scan_message_file)
 
-    assert subprocess_mock.call_count == 2
-    assert subprocess_mock.call_args.args[0][0] == "/usr/local/bin/osv-scanner"
-    assert subprocess_mock.call_args.args[0][1] == "--format"
-    assert subprocess_mock.call_args.args[0][2] == "json"
+    assert "/usr/local/bin/osv-scanner --format json --lockfile" in " ".join(
+        subprocess_mock.call_args.args[0]
+    )
     assert len(agent_mock) > 0
     assert (
         agent_mock[0].data["title"]

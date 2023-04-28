@@ -3,7 +3,7 @@ import dataclasses
 import json
 import logging
 import mimetypes
-import os
+import pathlib
 from typing import Iterator, Any
 
 import magic
@@ -55,8 +55,8 @@ class OSVFileHandler:
         Returns:
             The file extension
         """
-        if self.path is not None and len(os.path.splitext(self.path)[1]) >= 2:
-            return os.path.splitext(self.path)[1]
+        if self.path is not None and len(pathlib.Path(self.path).suffix) >= 2:
+            return pathlib.Path(self.path).suffix
         if self.content is not None:
             mime = magic.from_buffer(self.content, mime=True)
             return mimetypes.guess_extension(mime)
@@ -121,9 +121,9 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
             package_version = package.get("package", {}).get("version", "")
             package_framework = package.get("package", {}).get("ecosystem", "")
             for vuln in package.get("vulnerabilities", []):
-                vuln_id = vuln.get("id")
-                vuln_aliases = vuln.get("aliases")
-                summary = vuln.get("summary")
+                vuln_id = vuln.get("id", "")
+                vuln_aliases = vuln.get("aliases", "")
+                summary = vuln.get("summary", "")
                 technical_detail = construct_technical_detail(
                     package_name,
                     package_version,
@@ -194,9 +194,10 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     Returns:
         Risk rating of a vulnerability
     """
-    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3, "UNKNOWN": 4}
+    risk_ratings = [risk_rating.upper() for risk_rating in risk_ratings]
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x) or "UNKNOWN", reverse=False
+        risk_ratings, key=lambda x: priority_levels.get(x, 4), reverse=False
     )
 
     for rating in sorted_ratings:
