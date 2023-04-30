@@ -3,8 +3,8 @@ import dataclasses
 import json
 import logging
 import mimetypes
-import os
-from typing import Optional, Iterator, Any
+import pathlib
+from typing import Iterator, Any
 
 import magic
 from ostorlab.agent.kb import kb
@@ -41,10 +41,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LOCK_FILES_EXTENSIONS = [".lockfile", ".lock", ".json", ".yaml", ".xml", ".txt", ".mod"]
 
-
-class OSVWrapper:
+class OSVFileHandler:
     """OSV Wrapper responsible for running OSV on the appropriate file"""
 
     def __init__(self, content: bytes | None, path: str | None):
@@ -52,54 +50,17 @@ class OSVWrapper:
         self.path = path
         self.extension: str | None = ""
 
-    def validate_and_set_lock_file_extension(self) -> bool:
-        """check whether the file is valid lock file or not
-        Args:
-            content: the file content
-        Returns:
-            Boolean whether the file is valid
-        """
-        if self.content is None or self.content == b"":
-            logger.error("Received empty content.")
-            return False
-
-        self.extension = self.get_file_type()
-        if self.extension not in LOCK_FILES_EXTENSIONS:
-            logger.error("This type of file not supported.")
-            return False
-
-        return True
-
     def get_file_type(self) -> str | None:
         """Get the file extension
-        Args:
         Returns:
             The file extension
         """
-        if self.path is not None and len(os.path.splitext(self.path)[1]) >= 2:
-            return os.path.splitext(self.path)[1]
+        if self.path is not None and len(pathlib.Path(self.path).suffix) >= 2:
+            return pathlib.Path(self.path).suffix
         if self.content is not None:
             mime = magic.from_buffer(self.content, mime=True)
             return mimetypes.guess_extension(mime)
         return None
-
-    def write_content_to_file(self) -> str | None:
-        """Write the file content to a file
-        Args:
-        Returns:
-            The file path
-        """
-        if self.content is None or self.content != b"":
-            return None
-
-        decoded_content = self.content.decode("utf-8")
-        file_path = f"/tmp/lock_file{self.extension}"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(decoded_content)
-        return file_path
-
-    def build_putput(self, output: Optional[bytes]) -> None:
-        raise NotImplementedError
 
 
 def construct_technical_detail(
@@ -128,7 +89,7 @@ def construct_technical_detail(
     return technical_detail
 
 
-def read_output_file(output_file_path: str) -> dict[str, Any]:
+def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
     """Read the OSV scanner output from json file and return dict
     Args:
         output_file_path: the OSV scanner output file
@@ -149,7 +110,7 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
         Vulnerability entry.
     """
 
-    data = read_output_file(output_file_path)
+    data = read_output_file_as_dict(output_file_path)
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
         file_type = result.get("source", {}).get("type", "")
@@ -160,9 +121,9 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
             package_version = package.get("package", {}).get("version", "")
             package_framework = package.get("package", {}).get("ecosystem", "")
             for vuln in package.get("vulnerabilities", []):
-                vuln_id = vuln.get("id")
-                vuln_aliases = vuln.get("aliases")
-                summary = vuln.get("summary")
+                vuln_id = vuln.get("id", "")
+                vuln_aliases = vuln.get("aliases", "")
+                summary = vuln.get("summary", "")
                 technical_detail = construct_technical_detail(
                     package_name,
                     package_version,
@@ -201,12 +162,12 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
                 )
 
 
-def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVEDATA:
+def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
     """Set cve summary including risk rating, description and cvss v3 vector
     Args:
         cve_ids: cve ids of a vulnerability
     Returns:
-        CVEDATA of cve information
+        CVE of cve information
     """
     risk_ratings = []
     description = ""
@@ -221,7 +182,7 @@ def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVEDATA:
             cvss_v3_vector = cve_data.cvss_v3_vector
     risk_rating = calculate_risk_rating(risk_ratings)
 
-    return cve_service_api.CVEDATA(
+    return cve_service_api.CVE(
         risk=risk_rating, description=description, cvss_v3_vector=cvss_v3_vector
     )
 
@@ -233,9 +194,10 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     Returns:
         Risk rating of a vulnerability
     """
-    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3}
+    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3, "UNKNOWN": 4}
+    risk_ratings = [risk_rating.upper() for risk_rating in risk_ratings]
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x) or "UNKNOWN", reverse=False
+        risk_ratings, key=lambda x: priority_levels.get(x, 4), reverse=False
     )
 
     for rating in sorted_ratings:
