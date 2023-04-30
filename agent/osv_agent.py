@@ -40,7 +40,7 @@ class OSVAgent(
         content = message.data.get("content")
         path = message.data.get("path")
         if content is None or content == b"":
-            logger.warning("The file content is empty")
+            logger.warning("Message file content is empty")
             return
         self._osv_file_handler = osv_file_handler.OSVFileHandler(
             content=content, path=path
@@ -49,9 +49,10 @@ class OSVAgent(
         self._run_osv(content)
 
     def _run_osv(self, content: bytes) -> None:
-        """Perform the osv scan with two flags --sbom & --lockfile on a lockfile
+        """Perform the osv scan with two flags with --sbom and --lockfile,  letting OSV validate the file
+         instead of guessing the file format.
         Args:
-            content: file content
+            content: Scanned file content
         """
         extension = self._osv_file_handler.get_file_type()
         decoded_content = content.decode("utf-8")
@@ -61,14 +62,9 @@ class OSVAgent(
             lockfile_output = self._run_lockfile_command(file_path.name)
 
             if sbom_output is not None:
-                with open(SBOM_OUTPUT_PATH, "w", encoding="utf-8") as sbom_file:
-                    sbom_file.write(sbom_output)
-
+                self._emit_results(sbom_output)
             if lockfile_output is not None:
-                with open(SBOM_OUTPUT_PATH, "w", encoding="utf-8") as lock_file:
-                    lock_file.write(lockfile_output)
-
-            self._emit_results()
+                self._emit_results(lockfile_output)
 
     def _run_sbom_command(self, file_path: str) -> str | None:
         """build the sbom command and run it
@@ -120,17 +116,9 @@ class OSVAgent(
         logger.warning("Can't construct command")
         return None
 
-    def _emit_results(self) -> None:
+    def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
-        for vuln in osv_file_handler.parse_results(SBOM_OUTPUT_PATH):
-            self.report_vulnerability(
-                entry=vuln.entry,
-                technical_detail=vuln.technical_detail,
-                risk_rating=vuln.risk_rating,
-                vulnerability_location=vuln.vulnerability_location,
-            )
-
-        for vuln in osv_file_handler.parse_results(LOCKFILE_OUTPUT_PATH):
+        for vuln in osv_file_handler.parse_results(output):
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,

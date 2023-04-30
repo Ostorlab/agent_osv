@@ -83,8 +83,8 @@ def construct_technical_detail(
         technical detail
     """
     technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`,
-    version `{package_version}`, framework {package_framework}.
-    The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`."""
+        version `{package_version}`, framework {package_framework}.
+        The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`."""
 
     return technical_detail
 
@@ -102,7 +102,7 @@ def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
     return data
 
 
-def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
+def parse_results(output: str) -> Iterator[Vulnerability]:
     """Parses JSON generated OSV results and yield vulnerability entries.
     Args:
         output_file_path: OSV json output file path.
@@ -110,7 +110,7 @@ def parse_results(output_file_path: str) -> Iterator[Vulnerability]:
         Vulnerability entry.
     """
 
-    data = read_output_file_as_dict(output_file_path)
+    data = json.loads(output, strict=False)
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
         file_type = result.get("source", {}).get("type", "")
