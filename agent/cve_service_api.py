@@ -17,7 +17,9 @@ class CVE:
     cvss_v3_vector: str | None
 
 
-default_cve = CVE(risk="UNKNOWN", description="", fixed_version="", cvss_v3_vector="")
+default_cve = CVE(
+    risk="POTENTIALLY", description="", fixed_version="", cvss_v3_vector=""
+)
 
 
 @tenacity.retry(

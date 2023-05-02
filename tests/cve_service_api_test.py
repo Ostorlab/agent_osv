@@ -25,4 +25,4 @@ def testGetCveData_whenException_retrunDefaultValue(
         "agent.cve_service_api.requests.get", side_effect=requests.ConnectionError
     )
     cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-1234")
-    assert cve_data.risk == "UNKNOWN"
+    assert cve_data.risk == "POTENTIALLY"

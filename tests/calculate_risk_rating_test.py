@@ -7,7 +7,7 @@ from agent import osv_file_handler
 @pytest.mark.parametrize(
     "risk_ratings, expected_rating",
     [
-        ([], "UNKNOWN"),
+        ([], "POTENTIALLY"),
         (["HIGH"], "HIGH"),
         (["HIGH", "MEDIUM"], "HIGH"),
         (["HIGH", "MEDIUM", "LOW"], "HIGH"),
@@ -17,7 +17,7 @@ from agent import osv_file_handler
         (["LOW"], "LOW"),
         (["LOW", "LOW", "LOW"], "LOW"),
         (["high"], "HIGH"),
-        (["x"], "UNKNOWN"),
+        (["x"], "POTENTIALLY"),
         (["x", "high"], "HIGH"),
     ],
 )

@@ -15,7 +15,7 @@ from rich import logging as rich_logging
 from agent import cve_service_api
 
 RISK_RATING_MAPPING = {
-    "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
+    "POTENTIALLY": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
@@ -146,7 +146,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
-                        risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
+                        risk_rating=cve_data.risk.upper(),
                         short_description=summary,
                         description=cve_data.description,
                         references=vuln.get("references")[0],
@@ -201,7 +201,7 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     Returns:
         Risk rating of a vulnerability
     """
-    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3, "UNKNOWN": 4}
+    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3, "POTENTIALLY": 4}
     risk_ratings = [risk_rating.upper() for risk_rating in risk_ratings]
     sorted_ratings = sorted(
         risk_ratings, key=lambda x: priority_levels.get(x, 4), reverse=False
@@ -210,4 +210,4 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     for rating in sorted_ratings:
         if rating in priority_levels:
             return rating
-    return "UNKNOWN"
+    return "POTENTIALLY"
