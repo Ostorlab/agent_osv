@@ -13,7 +13,7 @@ REQUEST_TIMEOUT = 60
 class CVE:
     risk: str
     description: str
-    fixed_version: str | None
+    fixed_version: str
     cvss_v3_vector: str | None
 
 

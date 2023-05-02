@@ -20,9 +20,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SBOM_OUTPUT_PATH = "/tmp/sbom_osv_output.json"
-LOCKFILE_OUTPUT_PATH = "/tmp/lockfile_osv_output.json"
-
 
 class OSVAgent(
     agent.Agent,
@@ -40,7 +37,7 @@ class OSVAgent(
         content = message.data.get("content")
         path = message.data.get("path")
         if content is None or content == b"":
-            logger.warning("Message file content is empty")
+            logger.warning("Message file content is empty.")
             return
         self._osv_file_handler = osv_file_handler.OSVFileHandler(
             content=content, path=path

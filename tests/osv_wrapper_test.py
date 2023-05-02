@@ -13,7 +13,7 @@ def testGetFileType_withLockFilePath_returnFileType(valid_lock_file_path: str) -
 
 
 def testGetFileType_withLockFileContent_returnFileType(
-    mocker: plugin.MockerFixture, valid_lock_file_content: bytes
+        mocker: plugin.MockerFixture, valid_lock_file_content: bytes
 ) -> None:
     from_buffer_mock = mocker.patch("agent.osv_file_handler.magic.from_buffer")
     from_buffer_mock.return_value = "text/plain"
@@ -47,10 +47,11 @@ def testParseResults_withValidFile_returnData(osv_output: str) -> None:
     parsed_data_list = list(parsed_data)
 
     assert parsed_data_list[0].risk_rating.name == "HIGH"
-    assert "has a security issue at the package" in parsed_data_list[0].technical_detail
-    assert "protobuf" in parsed_data_list[0].technical_detail
-    assert "version `3.20.1`" in parsed_data_list[0].technical_detail
-    assert "The issue ID `GHSA-8gq9-2x98-w8hf`" in parsed_data_list[0].technical_detail
+    assert (
+            "has a security issue in package `protobuf`"
+            in parsed_data_list[0].technical_detail
+    )
+    assert "version `3.18.3`" in parsed_data_list[0].technical_detail
 
 
 def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
@@ -61,12 +62,12 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
     vuln_aliases = ["CVE-2022-1234"]
     vuln_id = "VULN-123"
 
-    expected_output = """The file `requirements.txt` has a security issue at the package `example-package`,
-        version `1.0.0`, framework example-framework.
-        The issue ID `VULN-123`, CVE `CVE-2022-1234`, Please consider update `example-package` to the latest
-         available versions."""
+    expected_output = """The file `requirements.txt` has a security issue in package `example-package` with version
+        `1.0.0` and framework `example-framework`. The issue is identified by CVE
+        `CVE-2022-1234`. We recommend updating `example-package` to the latest available version since
+         this issue is fixed in version `VULN-123`."""
 
-    o = osv_file_handler.construct_technical_detail(
+    technical_detail = osv_file_handler.construct_technical_detail(
         package_name,
         package_version,
         package_framework,
@@ -75,4 +76,4 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
         vuln_id,
     )
 
-    assert o == expected_output
+    assert technical_detail == expected_output

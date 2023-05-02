@@ -1,7 +1,6 @@
-"""OSV Wrapper responsible for running OSV Scanner on the appropriate file"""
+"""OSV Wrapper responsible for running OSV Scanner on the appropriate file."""
 import dataclasses
 import json
-import logging
 import mimetypes
 import pathlib
 from typing import Iterator, Any
@@ -10,7 +9,6 @@ import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
-from rich import logging as rich_logging
 
 from agent import cve_service_api
 
@@ -30,16 +28,6 @@ class Vulnerability:
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
     vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
-
-
-logging.basicConfig(
-    format="%(message)s",
-    datefmt="[%X]",
-    level="INFO",
-    force=True,
-    handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
-)
-logger = logging.getLogger(__name__)
 
 
 class OSVFileHandler:
@@ -64,12 +52,12 @@ class OSVFileHandler:
 
 
 def construct_technical_detail(
-    package_name: str,
-    package_version: str,
-    package_framework: str,
-    file_type: str,
-    vuln_aliases: list[str],
-    vuln_id: str,
+        package_name: str,
+        package_version: str,
+        package_framework: str,
+        file_type: str,
+        vuln_aliases: list[str],
+        fixed_version: str,
 ) -> str:
     """construct the technical detail
     Args:
@@ -78,14 +66,20 @@ def construct_technical_detail(
         package_framework: the package ecosystem
         file_type: lock file type
         vuln_aliases: Vulnerability CVEs
-        vuln_id: vulnerability id
+        fixed_version: The version when the issue is fixed
     Returns:
         technical detail
     """
-    technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`,
-        version `{package_version}`, framework {package_framework}.
-        The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`, Please consider update `{package_name}` to the latest
-         available versions."""
+    if package_framework is not None:
+        technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
+        `{package_version}` and framework `{package_framework}`. The issue is identified by CVE
+        `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version since
+         this issue is fixed in version `{fixed_version}`."""
+    else:
+        technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
+            `{package_version}`. The issue is identified by CVE
+            `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version since
+             this issue is fixed in version `{fixed_version}`."""
 
     return technical_detail
 
@@ -122,18 +116,17 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
             package_version = package.get("package", {}).get("version", "")
             package_framework = package.get("package", {}).get("ecosystem", "")
             for vuln in package.get("vulnerabilities", []):
-                vuln_id = vuln.get("id", "")
                 vuln_aliases = vuln.get("aliases", "")
                 summary = vuln.get("summary", "")
+                cve_data = get_cve_data_summary(vuln_aliases)
                 technical_detail = construct_technical_detail(
                     package_name,
                     package_version,
                     package_framework,
                     file_type,
                     vuln_aliases,
-                    vuln_id,
+                    cve_data.fixed_version,
                 )
-                cve_data = get_cve_data_summary(vuln_aliases)
                 vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
                     asset=file.File(),
                     metadata=[
