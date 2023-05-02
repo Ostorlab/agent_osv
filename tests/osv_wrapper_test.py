@@ -51,3 +51,28 @@ def testParseResults_withValidFile_returnData(osv_output: str) -> None:
     assert "protobuf" in parsed_data_list[0].technical_detail
     assert "version `3.20.1`" in parsed_data_list[0].technical_detail
     assert "The issue ID `GHSA-8gq9-2x98-w8hf`" in parsed_data_list[0].technical_detail
+
+
+def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
+    package_name = "example-package"
+    package_version = "1.0.0"
+    package_framework = "example-framework"
+    file_type = "requirements.txt"
+    vuln_aliases = ["CVE-2022-1234"]
+    vuln_id = "VULN-123"
+
+    expected_output = """The file `requirements.txt` has a security issue at the package `example-package`,
+        version `1.0.0`, framework example-framework.
+        The issue ID `VULN-123`, CVE `CVE-2022-1234`, Please consider update `example-package` to the latest
+         available versions."""
+
+    o = osv_file_handler.construct_technical_detail(
+        package_name,
+        package_version,
+        package_framework,
+        file_type,
+        vuln_aliases,
+        vuln_id,
+    )
+
+    assert o == expected_output

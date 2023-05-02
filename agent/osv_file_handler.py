@@ -84,7 +84,8 @@ def construct_technical_detail(
     """
     technical_detail = f"""The file `{file_type}` has a security issue at the package `{package_name}`,
         version `{package_version}`, framework {package_framework}.
-        The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`."""
+        The issue ID `{vuln_id}`, CVE `{",".join(vuln_aliases)}`, Please consider update `{package_name}` to the latest
+         available versions."""
 
     return technical_detail
 
@@ -172,6 +173,7 @@ def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
     risk_ratings = []
     description = ""
     cvss_v3_vector = ""
+    fixed_version = ""
 
     for cve_id in cve_ids:
         cve_data = cve_service_api.get_cve_data_from_api(cve_id)
@@ -180,10 +182,15 @@ def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
             description = cve_data.description
         if cve_data.cvss_v3_vector is not None and cve_data.cvss_v3_vector != "":
             cvss_v3_vector = cve_data.cvss_v3_vector
+        if cve_data.fixed_version is not None and cve_data.fixed_version != "":
+            fixed_version = cve_data.fixed_version
     risk_rating = calculate_risk_rating(risk_ratings)
 
     return cve_service_api.CVE(
-        risk=risk_rating, description=description, cvss_v3_vector=cvss_v3_vector
+        risk=risk_rating,
+        description=description,
+        fixed_version=fixed_version,
+        cvss_v3_vector=cvss_v3_vector,
     )
 
 

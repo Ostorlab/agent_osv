@@ -9,7 +9,7 @@ def testGetCveData_withResponse_returnRiskRating(
     mocker: plugin.MockerFixture,
 ) -> None:
     cve_data = cve_service_api.CVE(
-        risk="HIGH", description="description", cvss_v3_vector=None
+        risk="HIGH", description="description", fixed_version="2", cvss_v3_vector=None
     )
 
     mocker.patch("agent.cve_service_api.requests.get")

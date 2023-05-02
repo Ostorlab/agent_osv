@@ -21,7 +21,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
     cve_data = cve_service_api.CVE(
-        risk="HIGH", description="description", cvss_v3_vector=None
+        risk="HIGH", description="description", fixed_version="2", cvss_v3_vector=None
     )
 
     subprocess_mock = mocker.patch(
