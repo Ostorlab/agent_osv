@@ -13,7 +13,7 @@ def testGetFileType_withLockFilePath_returnFileType(valid_lock_file_path: str) -
 
 
 def testGetFileType_withLockFileContent_returnFileType(
-        mocker: plugin.MockerFixture, valid_lock_file_content: bytes
+    mocker: plugin.MockerFixture, valid_lock_file_content: bytes
 ) -> None:
     from_buffer_mock = mocker.patch("agent.osv_file_handler.magic.from_buffer")
     from_buffer_mock.return_value = "text/plain"
@@ -48,8 +48,8 @@ def testParseResults_withValidFile_returnData(osv_output: str) -> None:
 
     assert parsed_data_list[0].risk_rating.name == "HIGH"
     assert (
-            "has a security issue in package `protobuf`"
-            in parsed_data_list[0].technical_detail
+        "has a security issue in package `protobuf`"
+        in parsed_data_list[0].technical_detail
     )
     assert "version `3.18.3`" in parsed_data_list[0].technical_detail
 

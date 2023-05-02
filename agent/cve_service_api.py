@@ -13,7 +13,7 @@ REQUEST_TIMEOUT = 60
 class CVE:
     risk: str
     description: str
-    fixed_version: str
+    fixed_version: str | None
     cvss_v3_vector: str | None
 
 
@@ -40,30 +40,28 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
 
     response = requests.get(url, timeout=REQUEST_TIMEOUT)
     data = json.loads(response.text)
-
-    return CVE(
-        risk=data.get("result", {})
-        .get("CVE_Items", {})[0]
-        .get("impact", {})
-        .get("baseMetricV3", {})
-        .get("cvssV3", {})
-        .get("baseSeverity"),
-        description=data.get("result", {})
-        .get("CVE_Items", [{}])[0]
-        .get("cve", {})
-        .get("description", {})
-        .get("description_data", [{}])[0]
-        .get("value"),
-        fixed_version=data.get("result", {})
-        .get("CVE_Items", [{}])[0]
-        .get("configurations", {})
-        .get("nodes", [{}])[0]
-        .get("cpe_match", [{}])[-1]
-        .get("versionEndExcluding", ""),
-        cvss_v3_vector=data.get("result", {})
-        .get("CVE_Items", [{}])[0]
-        .get("impact", {})
-        .get("baseMetricV3", {})
-        .get("cvssV3", {})
-        .get("vectorString"),
-    )
+    cve_items = data.get("result", {}).get("CVE_Items", [{}])
+    if len(cve_items) > 0:
+        return CVE(
+            risk=cve_items[0]
+            .get("impact", {})
+            .get("baseMetricV3", {})
+            .get("cvssV3", {})
+            .get("baseSeverity"),
+            description=cve_items[0]
+            .get("cve", {})
+            .get("description", {})
+            .get("description_data", [{}])[0]
+            .get("value"),
+            fixed_version=cve_items[0]
+            .get("configurations", {})
+            .get("nodes", [{}])[0]
+            .get("cpe_match", [{}])[-1]
+            .get("versionEndExcluding", ""),
+            cvss_v3_vector=cve_items[0]
+            .get("impact", {})
+            .get("baseMetricV3", {})
+            .get("cvssV3", {})
+            .get("vectorString"),
+        )
+    return default_cve
