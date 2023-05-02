@@ -146,7 +146,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
-                        risk_rating=cve_data.risk.upper(),
+                        risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
                         short_description=summary,
                         description=cve_data.description,
                         references=vuln.get("references")[0],
