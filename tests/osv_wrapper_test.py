@@ -57,20 +57,18 @@ def testParseResults_withValidFile_returnData(osv_output: str) -> None:
 def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
     package_name = "example-package"
     package_version = "1.0.0"
-    package_framework = "example-framework"
     file_type = "requirements.txt"
     vuln_aliases = ["CVE-2022-1234"]
     vuln_id = "VULN-123"
 
     expected_output = """The file `requirements.txt` has a security issue in package `example-package` with version
-        `1.0.0` and framework `example-framework`. The issue is identified by CVE
+        `1.0.0`. The issue is identified by CVE
         `CVE-2022-1234`. We recommend updating `example-package` to the latest available version since
          this issue is fixed in version `VULN-123`."""
 
     technical_detail = osv_file_handler.construct_technical_detail(
         package_name,
         package_version,
-        package_framework,
         file_type,
         vuln_aliases,
         vuln_id,

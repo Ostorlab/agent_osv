@@ -54,7 +54,6 @@ class OSVFileHandler:
 def construct_technical_detail(
     package_name: str,
     package_version: str,
-    package_framework: str,
     file_type: str,
     vuln_aliases: list[str],
     fixed_version: str | None,
@@ -63,26 +62,20 @@ def construct_technical_detail(
     Args:
         package_name: the vulnerable package name
         package_version: the vulnerable package version
-        package_framework: the package ecosystem
         file_type: lock file type
         vuln_aliases: Vulnerability CVEs
         fixed_version: The version when the issue is fixed
     Returns:
         technical detail
     """
-    if package_framework is not None and fixed_version is not None:
+    if fixed_version is not None:
         technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
-        `{package_version}` and framework `{package_framework}`. The issue is identified by CVE
+        `{package_version}`. The issue is identified by CVE
         `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version since
          this issue is fixed in version `{fixed_version}`."""
-    elif package_framework is None and fixed_version is not None:
-        technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
-            `{package_version}`. The issue is identified by CVE
-            `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version since
-             this issue is fixed in version `{fixed_version}`."""
     else:
         technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
-        `{package_version}` and framework `{package_framework}`. The issue is identified by CVE
+        `{package_version}`. The issue is identified by CVE
         `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version."""
 
     return technical_detail
@@ -118,7 +111,6 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
         for package in packages:
             package_name = package.get("package", {}).get("name", "")
             package_version = package.get("package", {}).get("version", "")
-            package_framework = package.get("package", {}).get("ecosystem", "")
             for vuln in package.get("vulnerabilities", []):
                 vuln_aliases = vuln.get("aliases", "")
                 summary = vuln.get("summary", "")
@@ -126,7 +118,6 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 technical_detail = construct_technical_detail(
                     package_name,
                     package_version,
-                    package_framework,
                     file_type,
                     vuln_aliases,
                     cve_data.fixed_version,
