@@ -5,7 +5,6 @@ import tempfile
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
-from ostorlab.agent.mixins import agent_persist_mixin
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
 
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 class OSVAgent(
     agent.Agent,
     agent_report_vulnerability_mixin.AgentReportVulnMixin,
-    agent_persist_mixin.AgentPersistMixin,
 ):
     """OSV agent."""
 
