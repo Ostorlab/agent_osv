@@ -1,8 +1,8 @@
 """module responsible for retrieving the risk rating of a vulnerability"""
 import dataclasses
+import json
 
 import requests
-import json
 import tenacity
 
 CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cve/1.0/"
