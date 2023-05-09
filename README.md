@@ -11,19 +11,16 @@ _OSV Scanner is an open-source vulnerability scanner, used to identify security 
 
 ---
 
-<p align="center">
-<img src="https://github.com/Ostorlab/agent_osv/blob/main/images/logo.png" alt="agent-osv" />
-</p>
 
 This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for the [OSV Scanner](https://github.com/google/osv-scanner) by Google.
 
 ## Getting Started
 To perform your first scan, simply run the following command:
 ```shell
-ostorlab scan run --install --agent agent/ostorlab/osv file lockfile.txt
+ostorlab scan run --install --agent agent/ostorlab/osv file 
 ```
 
-This command will download and install `agent/ostorlab/osv` and target the file `lockfile.txt`.
+This command will download and install `agent/ostorlab/osv` and target the file.
 For more information, please refer to the [Ostorlab Documentation](https://github.com/Ostorlab/ostorlab/blob/main/README.md)
 
 
@@ -39,7 +36,7 @@ Agent OSV can be installed directly from the ostorlab agent store or built from 
 
 You can then run the agent with the following command:
 ```shell
-ostorlab scan run --agent agent/ostorlab/osv file lockfile.txt
+ostorlab scan run --agent agent/ostorlab/osv file 
 ```
 
 
@@ -68,11 +65,11 @@ git clone https://github.com/Ostorlab/agent_osv.git && cd agent_osv
  4. Run the agent using on of the following commands:
 	 * If you did not specify an organization when building the image:
     ```shell
-    ostorlab scan run --agent agent//osv file lockfile.txt
+    ostorlab scan run --agent agent//osv file 
     ```
 	 * If you specified an organization when building the image:
     ```shell
-    ostorlab scan run --agent agent/[ORGANIZATION]/osv file lockfile.txt
+    ostorlab scan run --agent agent/[ORGANIZATION]/osv file 
     ```
 
 
