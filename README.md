@@ -12,7 +12,7 @@ _OSV Scanner is an open-source vulnerability scanner, used to identify security 
 ---
 
 <p align="center">
-<img src="https://github.com/Ostorlab/agent_nuclei/blob/main/images/logo.png" alt="agent-nuclei" />
+<img src="https://github.com/Ostorlab/agent_osv/blob/main/images/logo.png" alt="agent-osv" />
 </p>
 
 This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for the [OSV Scanner](https://github.com/google/osv-scanner) by Google.
@@ -45,7 +45,7 @@ ostorlab scan run --agent agent/ostorlab/osv file lockfile.txt
 
 ### Build directly from the repository
 
- 1. To build the nuclei agent you need to have [ostorlab](https://pypi.org/project/ostorlab/) installed in your machine.  if you have already installed ostorlab, you can skip this step.
+ 1. To build the OSV agent you need to have [ostorlab](https://pypi.org/project/ostorlab/) installed in your machine.  if you have already installed ostorlab, you can skip this step.
 
 ```shell
 pip3 install ostorlab
