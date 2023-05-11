@@ -25,6 +25,7 @@ OSV_FILES_MAP = {
     ".lock": "pubspec.lock",
 }
 
+
 class OSVAgent(
     agent.Agent,
     agent_report_vulnerability_mixin.AgentReportVulnMixin,
@@ -55,13 +56,15 @@ class OSVAgent(
             content: Scanned file content
         """
         extension = self._osv_file_handler.get_file_type()
-        decoded_content = content.decode("utf-8")
+        if extension is None:
+            logger.error("Can't extract file extension.")
+            return None
         file_name = OSV_FILES_MAP.get(extension)
+        decoded_content = content.decode("utf-8")
         if file_name is None:
             return None
-        with open(file_name, "w") as file_path:
+        with open(file_name, "w", encoding="utf-8") as file_path:
             file_path.write(decoded_content)
-
 
         sbom_output = self._run_sbom_command(file_name)
         lockfile_output = self._run_lockfile_command(file_name)
