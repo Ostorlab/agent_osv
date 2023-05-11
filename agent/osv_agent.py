@@ -1,7 +1,6 @@
 """OSV agent implementation"""
 import logging
 import subprocess
-import tempfile
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
@@ -19,6 +18,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+OSV_FILES_MAP = {
+    ".json": "package-lock.json",
+    ".txt": "requirements.txt",
+    ".lockfile": "gradle.lockfile",
+    ".lock": "pubspec.lock",
+}
 
 class OSVAgent(
     agent.Agent,
@@ -51,15 +56,19 @@ class OSVAgent(
         """
         extension = self._osv_file_handler.get_file_type()
         decoded_content = content.decode("utf-8")
-        with tempfile.NamedTemporaryFile(mode="w", suffix=extension) as file_path:
+        file_name = OSV_FILES_MAP.get(extension)
+        if file_name is None:
+            return None
+        with open(file_name, "w") as file_path:
             file_path.write(decoded_content)
-            sbom_output = self._run_sbom_command(file_path.name)
-            lockfile_output = self._run_lockfile_command(file_path.name)
 
-            if sbom_output is not None:
-                self._emit_results(sbom_output)
-            if lockfile_output is not None:
-                self._emit_results(lockfile_output)
+
+        sbom_output = self._run_sbom_command(file_name)
+        lockfile_output = self._run_lockfile_command(file_name)
+        if sbom_output is not None:
+            self._emit_results(sbom_output)
+        if lockfile_output is not None:
+            self._emit_results(lockfile_output)
 
     def _run_sbom_command(self, file_path: str) -> str | None:
         """build the sbom command and run it
@@ -96,16 +105,14 @@ class OSVAgent(
                 "/usr/local/bin/osv-scanner",
                 "--format",
                 "json",
-                "--lockfile",
-                lockfile_path,
+                f"--lockfile={lockfile_path}",
             ]
         if sbomfile_path is not None:
             return [
                 "/usr/local/bin/osv-scanner",
                 "--format",
                 "json",
-                "--sbom",
-                sbomfile_path,
+                f"--sbom={sbomfile_path}",
             ]
 
         logger.warning("Can't construct command")

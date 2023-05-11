@@ -1,6 +1,7 @@
 """OSV Wrapper responsible for running OSV Scanner on the appropriate file."""
 import dataclasses
 import json
+import logging
 import mimetypes
 import pathlib
 from typing import Iterator, Any
@@ -18,6 +19,8 @@ RISK_RATING_MAPPING = {
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -97,58 +100,62 @@ def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
 def parse_results(output: str) -> Iterator[Vulnerability]:
     """Parses JSON generated OSV results and yield vulnerability entries.
     Args:
-        output_file_path: OSV json output file path.
+        output: OSV json output file path.
     Yields:
         Vulnerability entry.
     """
-
-    data = json.loads(output, strict=False)
+    try:
+        data = json.loads(output, strict=False)
+    except ValueError as e:
+        logger.error("Can't load the output, %s", e)
+        return
     results: dict[Any, Any] = data.get("results", [])
-    for result in results:
-        file_type = result.get("source", {}).get("type", "")
-        file_path = result.get("source", {}).get("path", "")
-        packages = result.get("packages", [{}])
-        for package in packages:
-            package_name = package.get("package", {}).get("name", "")
-            package_version = package.get("package", {}).get("version", "")
-            for vuln in package.get("vulnerabilities", []):
-                vuln_aliases = vuln.get("aliases", "")
-                summary = vuln.get("summary", "")
-                cve_data = get_cve_data_summary(vuln_aliases)
-                technical_detail = construct_technical_detail(
-                    package_name,
-                    package_version,
-                    file_type,
-                    vuln_aliases,
-                    cve_data.fixed_version,
-                )
-                vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
-                    asset=file.File(),
-                    metadata=[
-                        agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
-                            metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
-                            value=file_path,
-                        )
-                    ],
-                )
-                yield Vulnerability(
-                    entry=kb.Entry(
-                        title=summary,
-                        risk_rating=cve_data.risk.upper(),
-                        short_description=summary,
-                        description=cve_data.description,
-                        references=vuln.get("references")[0],
-                        security_issue=True,
-                        privacy_issue=False,
-                        has_public_exploit=False,
-                        targeted_by_malware=False,
-                        targeted_by_ransomware=False,
-                        targeted_by_nation_state=False,
-                    ),
-                    technical_detail=technical_detail,
-                    risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
-                    vulnerability_location=vuln_location,
-                )
+    if results is not None:
+        for result in results:
+            file_type = result.get("source", {}).get("type", "")
+            file_path = result.get("source", {}).get("path", "")
+            packages = result.get("packages", [{}])
+            for package in packages:
+                package_name = package.get("package", {}).get("name", "")
+                package_version = package.get("package", {}).get("version", "")
+                for vuln in package.get("vulnerabilities", []):
+                    vuln_aliases = vuln.get("aliases", "")
+                    summary = vuln.get("summary", "")
+                    cve_data = get_cve_data_summary(vuln_aliases)
+                    technical_detail = construct_technical_detail(
+                        package_name,
+                        package_version,
+                        file_type,
+                        vuln_aliases,
+                        cve_data.fixed_version,
+                    )
+                    vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
+                        asset=file.File(),
+                        metadata=[
+                            agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
+                                metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
+                                value=file_path,
+                            )
+                        ],
+                    )
+                    yield Vulnerability(
+                        entry=kb.Entry(
+                            title=summary,
+                            risk_rating=cve_data.risk.upper(),
+                            short_description=summary,
+                            description=cve_data.description,
+                            references=vuln.get("references")[0],
+                            security_issue=True,
+                            privacy_issue=False,
+                            has_public_exploit=False,
+                            targeted_by_malware=False,
+                            targeted_by_ransomware=False,
+                            targeted_by_nation_state=False,
+                        ),
+                        technical_detail=technical_detail,
+                        risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
+                        vulnerability_location=vuln_location,
+                    )
 
 
 def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
