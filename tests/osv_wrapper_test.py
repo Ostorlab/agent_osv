@@ -3,19 +3,19 @@ import json
 
 import pytest
 
-from agent import osv_file_handler
+from agent import osv_output_handler
 
 
 def testReadOutputFile_withValidFile_returnData(output_file: str) -> None:
     """Test read_output_file with a valid file"""
-    data = osv_file_handler.read_output_file_as_dict(output_file)
+    data = osv_output_handler.read_output_file_as_dict(output_file)
     assert data == {"key": "value"}
 
 
 def testReadOutputFile_withMissingFile_raiseFileNotFoundError() -> None:
     """Test read_output_file with a missing file"""
     with pytest.raises(FileNotFoundError):
-        osv_file_handler.read_output_file_as_dict("nonexistent_file.json")
+        osv_output_handler.read_output_file_as_dict("nonexistent_file.json")
 
 
 def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) -> None:
@@ -23,11 +23,11 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) ->
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("not JSON")
     with pytest.raises(json.JSONDecodeError):
-        osv_file_handler.read_output_file_as_dict(output_file)
+        osv_output_handler.read_output_file_as_dict(output_file)
 
 
 def testParseResults_withValidFile_returnData(osv_output: str) -> None:
-    parsed_data = osv_file_handler.parse_results(osv_output)
+    parsed_data = osv_output_handler.parse_results(osv_output)
 
     parsed_data_list = list(parsed_data)
 
@@ -51,7 +51,7 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
         `CVE-2022-1234`. We recommend updating `example-package` to the latest available version since
          this issue is fixed in version `VULN-123`."""
 
-    technical_detail = osv_file_handler.construct_technical_detail(
+    technical_detail = osv_output_handler.construct_technical_detail(
         package_name,
         package_version,
         file_type,

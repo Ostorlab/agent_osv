@@ -8,7 +8,7 @@ from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
 
-from agent import osv_file_handler
+from agent import osv_output_handler
 
 logging.basicConfig(
     format="%(message)s",
@@ -47,6 +47,8 @@ class OSVAgent(
          instead of guessing the file format.
         Args:
             content: Scanned file content
+
+            path: The file path.
         """
         file_name = pathlib.Path(path).name
         decoded_content = content.decode("utf-8")
@@ -113,7 +115,10 @@ class OSVAgent(
 
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
-        for vuln in osv_file_handler.parse_results(output):
+        parsed_output = osv_output_handler.parse_results(output)
+        logger.info("Parsed output : %s", parsed_output)
+
+        for vuln in parsed_output:
             logger.info("Reporting vulnerability.")
             self.report_vulnerability(
                 entry=vuln.entry,

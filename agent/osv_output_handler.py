@@ -1,4 +1,4 @@
-"""OSV Wrapper responsible for running OSV Scanner on the appropriate file."""
+"""OSV Wrapper responsible for dealing with the agent output and constructing its information."""
 import dataclasses
 import json
 import logging
@@ -7,7 +7,7 @@ from typing import Iterator, Any
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
-
+from rich import logging as rich_logging
 from agent import cve_service_api
 
 RISK_RATING_MAPPING = {
@@ -16,6 +16,14 @@ RISK_RATING_MAPPING = {
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
+
+logging.basicConfig(
+    format="%(message)s",
+    datefmt="[%X]",
+    level="INFO",
+    force=True,
+    handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
+)
 
 logger = logging.getLogger(__name__)
 
