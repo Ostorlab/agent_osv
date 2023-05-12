@@ -1,11 +1,9 @@
 """OSV Wrapper responsible for running OSV Scanner on the appropriate file."""
 import dataclasses
 import json
-import mimetypes
-import pathlib
+import logging
 from typing import Iterator, Any
 
-import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
@@ -19,6 +17,8 @@ RISK_RATING_MAPPING = {
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
 
+logger = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass
 class Vulnerability:
@@ -28,27 +28,6 @@ class Vulnerability:
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
     vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
-
-
-class OSVFileHandler:
-    """OSV Wrapper responsible for running OSV on the appropriate file"""
-
-    def __init__(self, content: bytes | None, path: str | None):
-        self.content = content
-        self.path = path
-        self.extension: str | None = ""
-
-    def get_file_type(self) -> str | None:
-        """Get the file extension
-        Returns:
-            The file extension
-        """
-        if self.path is not None and len(pathlib.Path(self.path).suffix) >= 2:
-            return pathlib.Path(self.path).suffix
-        if self.content is not None:
-            mime = magic.from_buffer(self.content, mime=True)
-            return mimetypes.guess_extension(mime)
-        return None
 
 
 def construct_technical_detail(
@@ -103,6 +82,10 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
     """
 
     data = json.loads(output, strict=False)
+    if data.get("results") is None:
+        logger.info("Osv returns null result.")
+        return
+
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
         file_type = result.get("source", {}).get("type", "")

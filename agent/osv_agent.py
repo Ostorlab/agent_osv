@@ -1,7 +1,7 @@
 """OSV agent implementation"""
 import logging
+import pathlib
 import subprocess
-import tempfile
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
@@ -30,36 +30,36 @@ class OSVAgent(
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
-        self._osv_file_handler: osv_file_handler.OSVFileHandler
         logger.info("processing message of selector : %s", message.selector)
         content = message.data.get("content")
         path = message.data.get("path")
+        if path is None:
+            logger.error("Can't process empty path.")
+            return
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return
-        self._osv_file_handler = osv_file_handler.OSVFileHandler(
-            content=content, path=path
-        )
 
-        self._run_osv(content)
+        self._run_osv(content, path)
 
-    def _run_osv(self, content: bytes) -> None:
+    def _run_osv(self, content: bytes, path: str) -> None:
         """Perform the osv scan with two flags with --sbom and --lockfile,  letting OSV validate the file
          instead of guessing the file format.
         Args:
             content: Scanned file content
         """
-        extension = self._osv_file_handler.get_file_type()
+        file_name = pathlib.Path(path).name
         decoded_content = content.decode("utf-8")
-        with tempfile.NamedTemporaryFile(mode="w", suffix=extension) as file_path:
+        with open(file_name, "w", encoding="utf-8") as file_path:
             file_path.write(decoded_content)
-            sbom_output = self._run_sbom_command(file_path.name)
-            lockfile_output = self._run_lockfile_command(file_path.name)
 
-            if sbom_output is not None:
-                self._emit_results(sbom_output)
-            if lockfile_output is not None:
-                self._emit_results(lockfile_output)
+        sbom_output = self._run_sbom_command(file_name)
+        lockfile_output = self._run_lockfile_command(file_name)
+
+        if sbom_output is not None:
+            self._emit_results(sbom_output)
+        if lockfile_output is not None:
+            self._emit_results(lockfile_output)
 
     def _run_sbom_command(self, file_path: str) -> str | None:
         """build the sbom command and run it
@@ -114,6 +114,7 @@ class OSVAgent(
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in osv_file_handler.parse_results(output):
+            logger.info("Reporting vulnerability.")
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,

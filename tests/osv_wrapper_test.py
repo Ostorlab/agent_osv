@@ -2,23 +2,8 @@
 import json
 
 import pytest
-from pytest_mock import plugin
 
 from agent import osv_file_handler
-
-
-def testGetFileType_withLockFilePath_returnFileType(valid_lock_file_path: str) -> None:
-    osv_scanner_wrapper = osv_file_handler.OSVFileHandler(None, valid_lock_file_path)
-    assert osv_scanner_wrapper.get_file_type() == ".lock"
-
-
-def testGetFileType_withLockFileContent_returnFileType(
-    mocker: plugin.MockerFixture, valid_lock_file_content: bytes
-) -> None:
-    from_buffer_mock = mocker.patch("agent.osv_file_handler.magic.from_buffer")
-    from_buffer_mock.return_value = "text/plain"
-    osv_scanner_wrapper = osv_file_handler.OSVFileHandler(valid_lock_file_content, None)
-    assert osv_scanner_wrapper.get_file_type() == ".txt"
 
 
 def testReadOutputFile_withValidFile_returnData(output_file: str) -> None:
