@@ -40,9 +40,9 @@ class OSVAgent(
             logger.warning("Message file content is empty.")
             return
 
-        self._run_osv(content, path)
+        self._run_osv(path, content)
 
-    def _run_osv(self, content: bytes, path: str) -> None:
+    def _run_osv(self, path: str, content: bytes) -> None:
         """Perform the osv scan with two flags with --sbom and --lockfile,  letting OSV validate the file
          instead of guessing the file format.
         Args:
