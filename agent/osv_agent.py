@@ -46,9 +46,9 @@ class OSVAgent(
         """Perform the osv scan with two flags with --sbom and --lockfile,  letting OSV validate the file
          instead of guessing the file format.
         Args:
-            content: Scanned file content
-
             path: The file path.
+
+            content: Scanned file content
         """
         file_name = pathlib.Path(path).name
         decoded_content = content.decode("utf-8")
