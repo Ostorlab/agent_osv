@@ -28,11 +28,11 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
         "agent.osv_agent._run_command", return_value=osv_output
     )
     mocker.patch(
-        "agent.osv_file_handler.read_output_file_as_dict",
+        "agent.osv_output_handler.read_output_file_as_dict",
         return_value=osv_output_as_dict,
     )
     mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
-    mocker.patch("agent.osv_file_handler.calculate_risk_rating", return_value="HIGH")
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(scan_message_file)
 
@@ -63,7 +63,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch("agent.osv_agent._run_command")
-    mocker.patch("agent.osv_file_handler.calculate_risk_rating", return_value="HIGH")
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(empty_scan_message_file)
 
@@ -83,7 +83,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     """
 
     subprocess_mock = mocker.patch("agent.osv_agent._run_command")
-    mocker.patch("agent.osv_file_handler.calculate_risk_rating", return_value="HIGH")
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(invalid_scan_message_file)
 

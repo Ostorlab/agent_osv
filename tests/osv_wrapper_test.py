@@ -2,35 +2,20 @@
 import json
 
 import pytest
-from pytest_mock import plugin
 
-from agent import osv_file_handler
-
-
-def testGetFileType_withLockFilePath_returnFileType(valid_lock_file_path: str) -> None:
-    osv_scanner_wrapper = osv_file_handler.OSVFileHandler(None, valid_lock_file_path)
-    assert osv_scanner_wrapper.get_file_type() == ".lock"
-
-
-def testGetFileType_withLockFileContent_returnFileType(
-    mocker: plugin.MockerFixture, valid_lock_file_content: bytes
-) -> None:
-    from_buffer_mock = mocker.patch("agent.osv_file_handler.magic.from_buffer")
-    from_buffer_mock.return_value = "text/plain"
-    osv_scanner_wrapper = osv_file_handler.OSVFileHandler(valid_lock_file_content, None)
-    assert osv_scanner_wrapper.get_file_type() == ".txt"
+from agent import osv_output_handler
 
 
 def testReadOutputFile_withValidFile_returnData(output_file: str) -> None:
     """Test read_output_file with a valid file"""
-    data = osv_file_handler.read_output_file_as_dict(output_file)
+    data = osv_output_handler.read_output_file_as_dict(output_file)
     assert data == {"key": "value"}
 
 
 def testReadOutputFile_withMissingFile_raiseFileNotFoundError() -> None:
     """Test read_output_file with a missing file"""
     with pytest.raises(FileNotFoundError):
-        osv_file_handler.read_output_file_as_dict("nonexistent_file.json")
+        osv_output_handler.read_output_file_as_dict("nonexistent_file.json")
 
 
 def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) -> None:
@@ -38,11 +23,11 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) ->
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("not JSON")
     with pytest.raises(json.JSONDecodeError):
-        osv_file_handler.read_output_file_as_dict(output_file)
+        osv_output_handler.read_output_file_as_dict(output_file)
 
 
 def testParseResults_withValidFile_returnData(osv_output: str) -> None:
-    parsed_data = osv_file_handler.parse_results(osv_output)
+    parsed_data = osv_output_handler.parse_results(osv_output)
 
     parsed_data_list = list(parsed_data)
 
@@ -66,7 +51,7 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
         `CVE-2022-1234`. We recommend updating `example-package` to the latest available version since
          this issue is fixed in version `VULN-123`."""
 
-    technical_detail = osv_file_handler.construct_technical_detail(
+    technical_detail = osv_output_handler.construct_technical_detail(
         package_name,
         package_version,
         file_type,
