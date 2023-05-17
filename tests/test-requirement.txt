@@ -2,3 +2,6 @@ pylint
 pytest
 pytest-mock
 black
+mypy
+typing_extensions
+types-requests
