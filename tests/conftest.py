@@ -3,7 +3,7 @@ import json
 import pathlib
 import random
 import subprocess
-from typing import Dict, Callable
+from typing import Dict, Callable, Any
 
 import pytest
 from ostorlab.agent import definitions as agent_definitions
@@ -46,12 +46,8 @@ def mocked_osv_scanner(
     """Creates a mocked osv scanner that returns a CompletedProcess object with the provided osv_output."""
 
     def scan(
-        *popenargs,
-        input=None,
-        capture_output=False,
-        timeout=None,
-        check=False,
-        **kwargs,
+        *popenargs: Any,
+        **kwargs: Any,
     ) -> subprocess.CompletedProcess[str]:
         if "package-lock.json" in popenargs[0]:
             return subprocess.CompletedProcess(popenargs, 0, fake_osv_output, None)

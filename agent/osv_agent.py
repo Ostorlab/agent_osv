@@ -60,35 +60,24 @@ def _get_content(message: m.Message) -> bytes | None:
     return None
 
 
-def _construct_command(
-    lockfile_path: str | None = None, sbomfile_path: str | None = None
-) -> list[str] | None:
-    """Constructs OSV command with correct flag based on the input.
-    Args:
-        lockfile_path: Path to the lockfile to be scanned.
-        sbomfile_path: Path to the sbom file to be scanned.
-    Returns:
-        A list containing the constructed command based on the input parameters..
-    """
-    if lockfile_path is not None:
-        return [
+def _construct_commands(file_path: str) -> list[list[str]]:
+    """Constructs OSV command, for both lockfile and sbomfile."""
+    return [
+        [
             "/usr/local/bin/osv-scanner",
             "--format",
             "json",
             "--lockfile",
-            lockfile_path,
-        ]
-    if sbomfile_path is not None:
-        return [
+            file_path,
+        ],
+        [
             "/usr/local/bin/osv-scanner",
             "--format",
             "json",
             "--sbom",
-            sbomfile_path,
-        ]
-
-    logger.warning("Can't construct command")
-    return None
+            file_path,
+        ],
+    ]
 
 
 def _run_osv(path: str, content: bytes) -> str | None:
@@ -103,14 +92,11 @@ def _run_osv(path: str, content: bytes) -> str | None:
     with open(file_name, "w", encoding="utf-8") as file_path:
         file_path.write(decoded_content)
 
-    possible_commands = [
-        _construct_command(lockfile_path=file_name),
-        _construct_command(sbomfile_path=file_name),
-    ]
-    for command in possible_commands:
+    for command in _construct_commands(file_name):
         output = _run_command(command)
         if output is not None:
             return output
+    return None
 
 
 class OSVAgent(
@@ -148,7 +134,7 @@ class OSVAgent(
             )
 
 
-def _is_valid_osv_result(results:str|None) -> bool:
+def _is_valid_osv_result(results: str | None) -> bool:
     """Check if the results are valid."""
     if results is None:
         return False

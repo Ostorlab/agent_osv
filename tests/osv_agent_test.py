@@ -16,7 +16,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
     osv_output_as_dict: dict[str, str],
-    fake_osv_output,
+    fake_osv_output: str,
 ) -> None:
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
@@ -98,7 +98,7 @@ def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file_no_name: message.Message,
     mocker: plugin.MockerFixture,
-    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess],
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
 ) -> None:
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
@@ -118,14 +118,14 @@ def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceThe
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file_content_url: message.Message,
     mocker: plugin.MockerFixture,
-    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess],
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
 ) -> None:
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
-    # mocker.patch("subprocess.run", mocked_osv_scanner)
-    # mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    mocker.patch("subprocess.run", mocked_osv_scanner)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(scan_message_file_content_url)
 
