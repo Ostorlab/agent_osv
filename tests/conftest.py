@@ -51,8 +51,8 @@ def mocked_osv_scanner(
     ) -> subprocess.CompletedProcess[str]:
         if "package-lock.json" in popenargs[0]:
             return subprocess.CompletedProcess(popenargs, 0, fake_osv_output, None)
-        else:
-            raise subprocess.CalledProcessError(1, popenargs)
+
+        return subprocess.CompletedProcess(popenargs, 0, """{"results":[]}""", None)
 
     return scan
 
@@ -72,7 +72,7 @@ def scan_message_file_content_url() -> message.Message:
     by the agent for testing purposes."""
     selector = "v3.asset.file"
     msg_data = {
-        "content_url": b"https://raw.githubusercontent.com/nuxt/website-v2/main/yarn.lock"
+        "content_url": b"https://ostorlab.co/requirements.txt",
     }
     return message.Message.from_data(selector, data=msg_data)
 

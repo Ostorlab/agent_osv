@@ -2,6 +2,7 @@
 import subprocess
 from typing import Union, Callable
 
+import requests_mock as rq_mock
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
@@ -112,9 +113,10 @@ def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     assert len(agent_mock) == 1
 
 
-def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceTheName(
+def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
+    requests_mock: rq_mock.mocker.Mocker,
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file_content_url: message.Message,
     mocker: plugin.MockerFixture,
@@ -123,10 +125,15 @@ def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceThe
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
-
+    cve_data = cve_service_api.CVE(
+        risk="HIGH", description="description", fixed_version="2", cvss_v3_vector=None
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
     mocker.patch("subprocess.run", mocked_osv_scanner)
     mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
-
+    mocked_requests = requests_mock.get(
+        "https://ostorlab.co/requirements.txt", content=b"ostorlab"
+    )
     test_agent.process(scan_message_file_content_url)
 
     assert len(agent_mock) == 1
@@ -134,3 +141,4 @@ def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceThe
         "requirements.txt"
         in agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
     )
+    assert mocked_requests.call_count == 1
