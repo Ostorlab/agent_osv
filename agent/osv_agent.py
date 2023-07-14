@@ -56,7 +56,7 @@ def _get_content(message: m.Message) -> bytes | None:
         return casted_content
     content_url = message.data.get("content_url")
     if content_url is not None:
-        return requests.get(content_url,timeout=60).content
+        return requests.get(content_url, timeout=60).content
     return None
 
 
@@ -131,16 +131,13 @@ class OSVAgent(
         for file_name in SUPPORTED_OSV_FILE_NAMES:
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
-                logger.info("OSV scan completed. %s", scan_results)
+                logger.info("Found valid name for file: %s", file_name)
                 self._emit_results(scan_results)
                 break
 
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
         parsed_output = osv_output_handler.parse_results(output)
-        logger.info("Parsed output : %s", parsed_output)
-        logger.info("Reporting %s vulnerabilities found", output)
-
         for vuln in parsed_output:
             logger.info("Reporting vulnerability.")
             self.report_vulnerability(
@@ -151,11 +148,21 @@ class OSVAgent(
             )
 
 
-def _is_valid_osv_result(results):
+def _is_valid_osv_result(results:str|None) -> bool:
     """Check if the results are valid."""
-    return (
-        results is not None and results != "" or json.loads(results) != {"results": []}
-    )
+    if results is None:
+        return False
+
+    if results == "":
+        return False
+
+    try:
+        if json.loads(results) == {"results": []}:
+            return False
+    except json.JSONDecodeError:
+        return False
+
+    return True
 
 
 def _run_command(command: list[str] | str) -> str | None:
@@ -175,7 +182,7 @@ def _run_command(command: list[str] | str) -> str | None:
         return None
     results = output.stdout
     if _is_valid_osv_result(results) is False:
-        logger.warning("OSV scan did not %s for the provided file", command)
+        logger.warning("OSV scan returned no results for command %s", command)
         return None
     return results
 

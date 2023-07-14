@@ -124,8 +124,8 @@ def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceThe
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
-    mocker.patch("subprocess.run", mocked_osv_scanner)
-    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    # mocker.patch("subprocess.run", mocked_osv_scanner)
+    # mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
     test_agent.process(scan_message_file_content_url)
 
