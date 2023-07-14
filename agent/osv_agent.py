@@ -153,7 +153,9 @@ class OSVAgent(
 
 def _is_valid_osv_result(results):
     """Check if the results are valid."""
-    return results is not None and results != "" or json.loads(results) != {"results": []}
+    return (
+        results is not None and results != "" or json.loads(results) != {"results": []}
+    )
 
 
 def _run_command(command: list[str] | str) -> str | None:
