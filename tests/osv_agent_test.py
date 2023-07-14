@@ -1,5 +1,6 @@
 """Unittests for OSV agent."""
-from typing import Union
+import subprocess
+from typing import Union, Callable
 
 from ostorlab.agent.message import message
 from pytest_mock import plugin
@@ -15,7 +16,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
     osv_output_as_dict: dict[str, str],
-    osv_output: str,
+    fake_osv_output,
 ) -> None:
     """Unittest for the full life cycle of the agent:
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
@@ -25,7 +26,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     )
 
     subprocess_mock = mocker.patch(
-        "agent.osv_agent._run_command", return_value=osv_output
+        "agent.osv_agent._run_command", return_value=fake_osv_output
     )
     mocker.patch(
         "agent.osv_output_handler.read_output_file_as_dict",
@@ -89,3 +90,47 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
 
     assert subprocess_mock.call_count == 0
     assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file_no_name: message.Message,
+    mocker: plugin.MockerFixture,
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess],
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    mocker.patch("subprocess.run", mocked_osv_scanner)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+
+    test_agent.process(scan_message_file_no_name)
+
+    assert len(agent_mock) == 1
+
+
+def testAgentOSV_whenAnalysisRunsWithNoFileNameAndContentUrl_shouldBruteForceTheName(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file_content_url: message.Message,
+    mocker: plugin.MockerFixture,
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess],
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    mocker.patch("subprocess.run", mocked_osv_scanner)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+
+    test_agent.process(scan_message_file_content_url)
+
+    assert len(agent_mock) == 1
+    assert (
+        "requirements.txt"
+        in agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+    )

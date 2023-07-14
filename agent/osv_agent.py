@@ -2,13 +2,34 @@
 import logging
 import pathlib
 import subprocess
-
+import requests
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
-
+import json
 from agent import osv_output_handler
+import typing
+
+SUPPORTED_OSV_FILE_NAMES = [
+    "buildscript-gradle.lockfile",
+    "Cargo.lock",
+    "composer.lock",
+    "conan.lock",
+    "Gemfile.lock",
+    "go.mod",
+    "gradle.lockfile",
+    "mix.lock",
+    "Pipfile.lock",
+    "package-lock.json",
+    "packages.lock.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "pom.xml",
+    "pubspec.lock",
+    "requirements.txt",
+    "yarn.lock",
+]
 
 logging.basicConfig(
     format="%(message)s",
@@ -18,6 +39,23 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
+
+
+def _get_content(message: m.Message) -> bytes | None:
+    """Get the content of the file from the message.
+    Args:
+        message: The message containing the file content.
+    Returns:
+        The content of the file.
+    """
+    content = message.data.get("content")
+    if content is not None:
+        casted_content = typing.cast(bytes, content)
+        return casted_content
+    content_url = message.data.get("content_url")
+    if content_url is not None:
+        return requests.get(content_url).content
+    return None
 
 
 class OSVAgent(
@@ -31,23 +69,22 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
-        content = message.data.get("content")
-        path = message.data.get("path")
-        if path is None:
-            logger.error("Can't process empty path.")
-            return
+        content = _get_content(message)
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return
+        for file_name in SUPPORTED_OSV_FILE_NAMES:
+            scan_results = self._run_osv(file_name, content)
+            if scan_results is not None:
+                logger.info("OSV scan completed. %s", scan_results)
+                self._emit_results(scan_results)
+                break
 
-        self._run_osv(path, content)
-
-    def _run_osv(self, path: str, content: bytes) -> None:
+    def _run_osv(self, path: str, content: bytes) -> str | None:
         """Perform the osv scan with two flags with --sbom and --lockfile,  letting OSV validate the file
          instead of guessing the file format.
         Args:
             path: The file path.
-
             content: Scanned file content
         """
         file_name = pathlib.Path(path).name
@@ -55,33 +92,17 @@ class OSVAgent(
         with open(file_name, "w", encoding="utf-8") as file_path:
             file_path.write(decoded_content)
 
-        sbom_output = self._run_sbom_command(file_name)
-        lockfile_output = self._run_lockfile_command(file_name)
+        sbom_command = self._construct_command(sbomfile_path=file_name)
+        if sbom_command is not None:
+            output = _run_command(sbom_command)
+            if output is not None:
+                return output
 
-        if sbom_output is not None:
-            self._emit_results(sbom_output)
-        if lockfile_output is not None:
-            self._emit_results(lockfile_output)
-
-    def _run_sbom_command(self, file_path: str) -> str | None:
-        """build the sbom command and run it
-        Args:
-            file_path: the sbom file path
-        """
-        command = self._construct_command(sbomfile_path=file_path)
-        if command is not None:
-            return _run_command(command)
-        return None
-
-    def _run_lockfile_command(self, file_path: str) -> str | None:
-        """build the lockfile command and run it
-        Args:
-            file_path: the lockfile file path
-        """
-        command = self._construct_command(lockfile_path=file_path)
-        if command is not None:
-            return _run_command(command)
-        return None
+        lockfile_command = self._construct_command(lockfile_path=file_name)
+        if lockfile_command is not None:
+            output = _run_command(lockfile_command)
+            if output is not None:
+                return output
 
     def _construct_command(
         self, lockfile_path: str | None = None, sbomfile_path: str | None = None
@@ -117,6 +138,7 @@ class OSVAgent(
         """Parses results and emits vulnerabilities."""
         parsed_output = osv_output_handler.parse_results(output)
         logger.info("Parsed output : %s", parsed_output)
+        logger.info("Reporting %s vulnerabilities found", output)
 
         for vuln in parsed_output:
             logger.info("Reporting vulnerability.")
@@ -143,8 +165,11 @@ def _run_command(command: list[str] | str) -> str | None:
     except subprocess.TimeoutExpired:
         logger.warning("Timeout occurred while running command")
         return None
-
-    return output.stdout
+    results = output.stdout
+    if results is None or results == "" or json.loads(results) == {"results": []}:
+        logger.warning("OSV scan did not %s for the provided file", command)
+        return None
+    return results
 
 
 if __name__ == "__main__":
