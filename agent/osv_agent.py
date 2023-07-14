@@ -56,7 +56,7 @@ def _get_content(message: m.Message) -> bytes | None:
         return casted_content
     content_url = message.data.get("content_url")
     if content_url is not None:
-        return requests.get(content_url).content
+        return requests.get(content_url,timeout=60).content
     return None
 
 
