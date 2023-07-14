@@ -41,7 +41,7 @@ def invalid_scan_message_file() -> message.Message:
 
 @pytest.fixture
 def mocked_osv_scanner(
-    fake_osv_output,
+    fake_osv_output:str,
 ) -> Callable[..., subprocess.CompletedProcess[str]]:
     """Creates a mocked osv scanner that returns a CompletedProcess object with the provided osv_output."""
 
