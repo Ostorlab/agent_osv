@@ -105,6 +105,7 @@ def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
     """
 
+    mocker.patch("time.sleep")
     mocker.patch("subprocess.run", mocked_osv_scanner)
     mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
 
