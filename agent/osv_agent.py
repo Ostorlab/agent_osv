@@ -128,7 +128,6 @@ class OSVAgent(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
                 risk_rating=vuln.risk_rating,
-                vulnerability_location=vuln.vulnerability_location,
             )
 
 

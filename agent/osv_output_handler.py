@@ -35,7 +35,6 @@ class Vulnerability:
     entry: kb.Entry
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
-    vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
 
 
 def construct_technical_detail(
@@ -113,15 +112,6 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                     vuln_aliases,
                     cve_data.fixed_version,
                 )
-                vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
-                    asset=file.File(),
-                    metadata=[
-                        agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
-                            metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
-                            value=file_path,
-                        )
-                    ],
-                )
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
@@ -138,7 +128,6 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                     ),
                     technical_detail=technical_detail,
                     risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
-                    vulnerability_location=vuln_location,
                 )
 
 
