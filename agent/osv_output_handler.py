@@ -61,7 +61,7 @@ def construct_technical_detail(
         f"`{package_version}`. The issue `{summary}` is identified by CVE `{','.join(vuln_aliases)}`."
     )
     if fixed_version is not None:
-        technical_detail += f"\n The issue is fixed in version `{fixed_version}`."
+        technical_detail += f"\n The issue was fixed in version `{fixed_version}`."
     return technical_detail
 
 
@@ -112,6 +112,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 )
                 entry = kb.KB.OUTDATED_VULNERABLE_COMPONENT
                 entry.title = f"Use of Outdated Vulnerable Component: {package_name} {package_version}"
+                entry.short_description = summary
                 yield Vulnerability(
                     entry=entry,
                     technical_detail=technical_detail,
