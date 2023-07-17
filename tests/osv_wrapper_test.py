@@ -51,7 +51,7 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
     expected_output = (
         "The file `requirements.txt` has a security issue in package `example-package`with version"
         " `1.0.0`. The issue `Summary of the issue` is identified by CVE `CVE-2022-1234`.\n "
-        "The issue is fixed in version `VULN-123`."
+        "The issue was fixed in version `VULN-123`."
     )
 
     technical_detail = osv_output_handler.construct_technical_detail(
