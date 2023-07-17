@@ -57,8 +57,7 @@ def construct_technical_detail(
         technical detail
     """
     technical_detail = (
-        f"The file `{file_type}` has a security issue in package `{package_name}`with version "
-        f"`{package_version}`. The issue `{summary}` is identified by CVE `{','.join(vuln_aliases)}`."
+            f"Dependency `{package_name}` with version `{package_version}` found in `{file_type}` has a security issue. The issue `{summary}` is identified by CVE `{','.join(vuln_aliases)}`."
     )
     if fixed_version is not None:
         technical_detail += f"\n The issue was fixed in version `{fixed_version}`."
