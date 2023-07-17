@@ -43,7 +43,7 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
     assert "version `3.18.3`" in parsed_data_list[0].technical_detail
 
 
-def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
+def testConstructTechnicalDetail_whenAllArgs_returnTechnicalDetail() -> None:
     package_name = "example-package"
     package_version = "1.0.0"
     file_type = "requirements.txt"

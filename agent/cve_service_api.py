@@ -44,26 +44,49 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
     data = json.loads(response.text)
     cve_items = data.get("result", {}).get("CVE_Items", [{}])
     if len(cve_items) > 0:
+        first_cve_item = cve_items[0]
+        try:
+            fixed_version = (
+                first_cve_item.get("configurations", {})
+                .get("nodes", [{}])[0]
+                .get("cpe_match", [{}])[-1]
+                .get("versionEndExcluding", "")
+            )
+        except IndexError:
+            fixed_version = ""
+        try:
+            cvss_v3_vector = (
+                first_cve_item.get("impact", {})
+                .get("baseMetricV3", {})
+                .get("cvssV3", {})
+                .get("vectorString", "")
+            )
+        except IndexError:
+            cvss_v3_vector = ""
+        try:
+            description = (
+                first_cve_item.get("cve", {})
+                .get("description", {})
+                .get("description_data", [{}])[0]
+                .get("value", "")
+            )
+        except IndexError:
+            description = ""
+
+        try:
+            risk = (
+                first_cve_item.get("impact", {})
+                .get("baseMetricV3", {})
+                .get("cvssV3", {})
+                .get("baseSeverity", "")
+            )
+        except IndexError:
+            risk = ""
+
         return CVE(
-            risk=cve_items[0]
-            .get("impact", {})
-            .get("baseMetricV3", {})
-            .get("cvssV3", {})
-            .get("baseSeverity"),
-            description=cve_items[0]
-            .get("cve", {})
-            .get("description", {})
-            .get("description_data", [{}])[0]
-            .get("value"),
-            fixed_version=cve_items[0]
-            .get("configurations", {})
-            .get("nodes", [{}])[0]
-            .get("cpe_match", [{}])[-1]
-            .get("versionEndExcluding", ""),
-            cvss_v3_vector=cve_items[0]
-            .get("impact", {})
-            .get("baseMetricV3", {})
-            .get("cvssV3", {})
-            .get("vectorString"),
+            risk=risk,
+            description=description,
+            fixed_version=fixed_version,
+            cvss_v3_vector=cvss_v3_vector,
         )
     return default_cve
