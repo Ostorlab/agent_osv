@@ -5,3 +5,4 @@ black
 mypy
 typing_extensions
 types-requests
+requests_mock

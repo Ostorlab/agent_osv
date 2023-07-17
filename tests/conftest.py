@@ -1,12 +1,13 @@
 """Pytest fixture for the osv agent."""
 import json
-import random
 import pathlib
-from typing import Dict
+import random
+import subprocess
+from typing import Dict, Callable, Any
 
 import pytest
-from ostorlab.agent.message import message
 from ostorlab.agent import definitions as agent_definitions
+from ostorlab.agent.message import message
 from ostorlab.runtimes import definitions as runtime_definitions
 
 from agent import osv_agent
@@ -35,6 +36,44 @@ def invalid_scan_message_file() -> message.Message:
     """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
     msg_data = {"content": b"", "path": "test.java"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def mocked_osv_scanner(
+    fake_osv_output: str,
+) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """Creates a mocked osv scanner that returns a CompletedProcess object with the provided osv_output."""
+
+    def scan(
+        *popenargs: Any,
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        if "package-lock.json" in popenargs[0]:
+            return subprocess.CompletedProcess(popenargs, 0, fake_osv_output, None)
+
+        return subprocess.CompletedProcess(popenargs, 0, """{"results":[]}""", None)
+
+    return scan
+
+
+@pytest.fixture
+def scan_message_file_no_name() -> message.Message:
+    """Creates a dummy message with no name `path`
+    provided of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {"content": b"May the force be with you"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def scan_message_file_content_url() -> message.Message:
+    """Creates a dummy message with no name `path` provided of type v3.asset.file to be used
+    by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {
+        "content_url": b"https://ostorlab.co/requirements.txt",
+    }
     return message.Message.from_data(selector, data=msg_data)
 
 
@@ -96,7 +135,7 @@ def osv_output_as_dict() -> dict[str, str]:
     return data
 
 
-@pytest.fixture
+@pytest.fixture(name="fake_osv_output")
 def osv_output() -> str:
     """Return a temporary file and write JSON data to it"""
     with open(

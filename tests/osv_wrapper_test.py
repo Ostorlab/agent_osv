@@ -26,8 +26,8 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) ->
         osv_output_handler.read_output_file_as_dict(output_file)
 
 
-def testParseResults_withValidFile_returnData(osv_output: str) -> None:
-    parsed_data = osv_output_handler.parse_results(osv_output)
+def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
+    parsed_data = osv_output_handler.parse_results(fake_osv_output)
 
     parsed_data_list = list(parsed_data)
 
