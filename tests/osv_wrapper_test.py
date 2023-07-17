@@ -48,10 +48,7 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
     vuln_aliases = ["CVE-2022-1234"]
     vuln_id = "VULN-123"
 
-    expected_output = """The file `requirements.txt` has a security issue in package `example-package` with version
-        `1.0.0`. The issue is identified by CVE
-        `CVE-2022-1234`. We recommend updating `example-package` to the latest available version since
-         this issue is fixed in version `VULN-123`."""
+    expected_output = "The file `requirements.txt` has a security issue in package `example-package`with version `1.0.0`. The issue `Summary of the issue` is identified by CVE `CVE-2022-1234`.\n The issue is fixed in version `VULN-123`."
 
     technical_detail = osv_output_handler.construct_technical_detail(
         package_name,
@@ -59,6 +56,7 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
         file_type,
         vuln_aliases,
         vuln_id,
+        summary="Summary of the issue",
     )
 
     assert technical_detail == expected_output

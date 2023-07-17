@@ -6,8 +6,8 @@ from typing import Iterator, Any
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.assets import file
 from rich import logging as rich_logging
+
 from agent import cve_service_api
 
 RISK_RATING_MAPPING = {
@@ -43,6 +43,7 @@ def construct_technical_detail(
     file_type: str,
     vuln_aliases: list[str],
     fixed_version: str | None,
+    summary: str,
 ) -> str:
     """construct the technical detail
     Args:
@@ -51,19 +52,16 @@ def construct_technical_detail(
         file_type: lock file type
         vuln_aliases: Vulnerability CVEs
         fixed_version: The version when the issue is fixed
+        summary: The summary of the issue
     Returns:
         technical detail
     """
+    technical_detail = (
+        f"The file `{file_type}` has a security issue in package `{package_name}`with version "
+        f"`{package_version}`. The issue `{summary}` is identified by CVE `{','.join(vuln_aliases)}`."
+    )
     if fixed_version is not None:
-        technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
-        `{package_version}`. The issue is identified by CVE
-        `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version since
-         this issue is fixed in version `{fixed_version}`."""
-    else:
-        technical_detail = f"""The file `{file_type}` has a security issue in package `{package_name}` with version
-        `{package_version}`. The issue is identified by CVE
-        `{",".join(vuln_aliases)}`. We recommend updating `{package_name}` to the latest available version."""
-
+        technical_detail += f"\n The issue is fixed in version `{fixed_version}`."
     return technical_detail
 
 
@@ -83,7 +81,7 @@ def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
 def parse_results(output: str) -> Iterator[Vulnerability]:
     """Parses JSON generated OSV results and yield vulnerability entries.
     Args:
-        output_file_path: OSV json output file path.
+        output: OSV json output file path.
     Yields:
         Vulnerability entry.
     """
@@ -111,21 +109,12 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                     file_type,
                     vuln_aliases,
                     cve_data.fixed_version,
+                    summary,
                 )
+                entry = kb.KB.OUTDATED_VULNERABLE_COMPONENT
+                entry.title = f"Use of Outdated Vulnerable Component: {package_name} {package_version}"
                 yield Vulnerability(
-                    entry=kb.Entry(
-                        title=summary,
-                        risk_rating=cve_data.risk.upper(),
-                        short_description=summary,
-                        description=cve_data.description,
-                        references=vuln.get("references")[0],
-                        security_issue=True,
-                        privacy_issue=False,
-                        has_public_exploit=False,
-                        targeted_by_malware=False,
-                        targeted_by_ransomware=False,
-                        targeted_by_nation_state=False,
-                    ),
+                    entry=entry,
                     technical_detail=technical_detail,
                     risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
                 )

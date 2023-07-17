@@ -47,7 +47,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     assert len(agent_mock) > 0
     assert (
         agent_mock[0].data["title"]
-        == "protobuf-cpp and protobuf-python have potential Denial of Service issue"
+        == "Use of Outdated Vulnerable Component: protobuf 3.20.1"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 
