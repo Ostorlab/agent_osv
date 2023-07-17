@@ -148,7 +148,7 @@ def osv_output() -> str:
 
 
 @pytest.fixture(name="fake_osv_output_missing_cve")
-def osv_output() -> str:
+def osv_output_missing_cve() -> str:
     """Return a temporary file and write JSON data to it"""
     with open(
         f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_output_missing_cve.json",
