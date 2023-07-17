@@ -94,7 +94,6 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
         file_type = result.get("source", {}).get("type", "")
-        file_path = result.get("source", {}).get("path", "")
         packages = result.get("packages", [{}])
         for package in packages:
             package_name = package.get("package", {}).get("name", "")
