@@ -35,9 +35,11 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
 
     assert parsed_data_list[0].risk_rating.name == "HIGH"
     assert (
-        "has a security issue in package `protobuf`"
-        in parsed_data_list[0].technical_detail
-    )
+        "Dependency `protobuf` with version `3.20.1` found in `lockfile` has a "
+        "security issue. The issue `protobuf-cpp and protobuf-python have potential "
+        "Denial of Service issue` is identified by CVE `CVE-2022-1941`.\n"
+        " The issue was fixed in version `3.18.3`."
+    ) in parsed_data_list[0].technical_detail
     assert "version `3.18.3`" in parsed_data_list[0].technical_detail
 
 
@@ -49,9 +51,10 @@ def testConstructTechnicalDetail_whenAllArgs_returnTechniclalDetail() -> None:
     vuln_id = "VULN-123"
 
     expected_output = (
-        "The file `requirements.txt` has a security issue in package `example-package`with version"
-        " `1.0.0`. The issue `Summary of the issue` is identified by CVE `CVE-2022-1234`.\n "
-        "The issue was fixed in version `VULN-123`."
+        "Dependency `example-package` with version `1.0.0` found in "
+        "`requirements.txt` has a security issue. The issue `Summary of the issue` is "
+        "identified by CVE `CVE-2022-1234`.\n"
+        " The issue was fixed in version `VULN-123`."
     )
 
     technical_detail = osv_output_handler.construct_technical_detail(
