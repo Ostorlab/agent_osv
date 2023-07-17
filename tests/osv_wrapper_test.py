@@ -18,7 +18,9 @@ def testReadOutputFile_withMissingFile_raiseFileNotFoundError() -> None:
         osv_output_handler.read_output_file_as_dict("nonexistent_file.json")
 
 
-def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(output_file: str) -> None:
+def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(
+    output_file: str,
+) -> None:
     """Test read_output_file with a file containing invalid JSON"""
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("not JSON")

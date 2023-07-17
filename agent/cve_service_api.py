@@ -23,9 +23,11 @@ default_cve = CVE(
 
 
 @tenacity.retry(
-    stop=tenacity.stop_after_attempt(3),
+    stop=tenacity.stop_after_attempt(10),
+    # wait for 30 seconds before retrying
+    wait=tenacity.wait_fixed(30),
     retry=tenacity.retry_if_exception_type(
-        (requests.ConnectionError, requests.HTTPError)
+        (requests.ConnectionError, requests.HTTPError, json.JSONDecodeError)
     ),
     retry_error_callback=lambda retry_state: default_cve,
 )
