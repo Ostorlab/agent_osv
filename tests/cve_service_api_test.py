@@ -2600,7 +2600,7 @@ def testGetCveData_withResponse_returnRiskRating(
         re.compile("https://services.nvd.nist.gov/.*"),
         text=cve_data_json,
     )
-    time_mocked = mocker.patch("time.sleep")
+    mocker.patch("time.sleep")
 
     cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-12345")
 
@@ -2616,7 +2616,7 @@ def testGetCveData_whenException_returnDefaultValue(
         text="<html><body><h1>503 Service Unavailable</h1>"
         "\nNo server is available to handle this request.\n</body></html>\n",
     )
-    time_mocked = mocker.patch("time.sleep")
+    mocker.patch("time.sleep")
 
     cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-1234")
 
