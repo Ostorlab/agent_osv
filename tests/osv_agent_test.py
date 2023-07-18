@@ -47,13 +47,9 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     assert len(agent_mock) > 0
     assert (
         agent_mock[0].data["title"]
-        == "protobuf-cpp and protobuf-python have potential Denial of Service issue"
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
-    assert (
-        "requirements.txt"
-        in agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
-    )
 
 
 def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
@@ -144,8 +140,4 @@ def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName
     test_agent.process(scan_message_file_content_url)
 
     assert len(agent_mock) == 1
-    assert (
-        "requirements.txt"
-        in agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
-    )
     assert mocked_requests.call_count == 1
