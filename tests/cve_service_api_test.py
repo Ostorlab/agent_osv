@@ -150,7 +150,9 @@ def testGetCveData_whenJsonDataIsMissingItems_ReturnDefault(
         re.compile("https://services.nvd.nist.gov/.*"),
         text=fake_osv_output_missing_cve,
     )
+
     cve = cve_service_api.get_cve_data_from_api("CVE-2021-37713")
+
     assert requests_mock.call_count == 1
     assert cve.risk == "HIGH"
     assert cve.cvss_v3_vector == "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H"
