@@ -2,7 +2,8 @@
 import dataclasses
 import json
 import logging
-from typing import Iterator, Any
+import pathlib
+from typing import Iterator, Any, Tuple
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
@@ -10,6 +11,7 @@ from rich import logging as rich_logging
 
 from agent import cve_service_api
 
+CVE_MITRE_URL = "https://cve.mitre.org/cgi-bin/cvename.cgi?name="
 RISK_RATING_MAPPING = {
     "POTENTIALLY": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
@@ -37,34 +39,6 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(
-    package_name: str,
-    package_version: str,
-    file_type: str,
-    vuln_aliases: list[str],
-    fixed_version: str | None,
-    summary: str,
-) -> str:
-    """construct the technical detail
-    Args:
-        package_name: the vulnerable package name
-        package_version: the vulnerable package version
-        file_type: lock file type
-        vuln_aliases: Vulnerability CVEs
-        fixed_version: The version when the issue is fixed
-        summary: The summary of the issue
-    Returns:
-        technical detail
-    """
-    technical_detail = (
-        f"Dependency `{package_name}` with version `{package_version}` found in `{file_type}` "
-        f"has a security issue. The issue `{summary}` is identified by CVE `{','.join(vuln_aliases)}`."
-    )
-    if fixed_version is not None:
-        technical_detail += f"\n The issue was fixed in version `{fixed_version}`."
-    return technical_detail
-
-
 def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
     """Read the OSV scanner output from json file and return dict
     Args:
@@ -76,6 +50,19 @@ def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
         data: dict[str, Any] = json.load(of)
 
     return data
+
+
+def _build_references(references: list[dict[str, str]]) -> dict[str, str]:
+    """Build references from the OSV output
+    Args:
+        references: references from OSV output
+    Returns:
+        references list as object with name, url as key-value.
+    """
+    references_list = {}
+    for reference in references:
+        references_list[reference.get("url", "")] = reference.get("url", "")
+    return references_list
 
 
 def parse_results(output: str) -> Iterator[Vulnerability]:
@@ -93,62 +80,55 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
 
     results: dict[Any, Any] = data.get("results", [])
     for result in results:
-        file_type = result.get("source", {}).get("type", "")
         packages = result.get("packages", [{}])
+        file_type = result.get("source", {}).get("type", "")
+        file_name = pathlib.Path(result.get("source", {}).get("path", "")).name
         for package in packages:
             package_name = package.get("package", {}).get("name", "")
             package_version = package.get("package", {}).get("version", "")
             for vuln in package.get("vulnerabilities", []):
-                vuln_aliases = vuln.get("aliases", "")
-                summary = vuln.get("summary", "")
-                cve_data = get_cve_data_summary(vuln_aliases)
-                technical_detail = construct_technical_detail(
-                    package_name,
-                    package_version,
-                    file_type,
-                    vuln_aliases,
-                    cve_data.fixed_version,
-                    summary,
+                cve_ids = vuln.get("aliases", "")
+                risk_rating, cve_list_details = _aggregate_cves(cve_ids=cve_ids)
+                description = (
+                    f"Dependency `{package_name}` with version `{package_version}`"
+                    f" found in the `{file_type}` `{file_name}` "
+                    f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(cve_ids)}`."
                 )
-                entry = kb.KB.OUTDATED_VULNERABLE_COMPONENT
-                entry.title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}"
-                entry.short_description = summary
                 yield Vulnerability(
-                    entry=entry,
-                    technical_detail=technical_detail,
-                    risk_rating=RISK_RATING_MAPPING[cve_data.risk.upper()],
+                    entry=kb.Entry(
+                        title=f"Use of Outdated Vulnerable Component: {package_name}@{package_version}",
+                        risk_rating=risk_rating.upper(),
+                        short_description=vuln.get("summary", ""),
+                        description=description,
+                        references=_build_references(vuln.get("references", [])),
+                        security_issue=True,
+                        privacy_issue=False,
+                        has_public_exploit=False,
+                        targeted_by_malware=False,
+                        targeted_by_ransomware=False,
+                        targeted_by_nation_state=False,
+                    ),
+                    technical_detail=f"{vuln.get('details')} \n#### CVEs:\n {cve_list_details}",
+                    risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
                 )
 
 
-def get_cve_data_summary(cve_ids: list[str]) -> cve_service_api.CVE:
-    """Set cve summary including risk rating, description and cvss v3 vector
-    Args:
-        cve_ids: cve ids of a vulnerability
-    Returns:
-        CVE of cve information
-    """
+def _aggregate_cves(cve_ids: list[str]) -> Tuple[str, str]:
+    """Generate the description for the vulnerability from all the related CVEs."""
     risk_ratings = []
-    description = ""
-    cvss_v3_vector = ""
-    fixed_version = ""
-
+    cve_list_details = ""
     for cve_id in cve_ids:
+        cve_list_details += f"- [{cve_id}]({CVE_MITRE_URL}{cve_id}) "
         cve_data = cve_service_api.get_cve_data_from_api(cve_id)
-        risk_ratings.append(cve_data.risk)
         if cve_data.description is not None and cve_data.description != "":
-            description = cve_data.description
-        if cve_data.cvss_v3_vector is not None and cve_data.cvss_v3_vector != "":
-            cvss_v3_vector = cve_data.cvss_v3_vector
+            cve_list_details += f": {cve_data.description}"
         if cve_data.fixed_version is not None and cve_data.fixed_version != "":
-            fixed_version = cve_data.fixed_version
+            cve_list_details += (
+                f"The issue was fixed in version `{cve_data.fixed_version}`. \n "
+            )
+        risk_ratings.append(cve_data.risk)
     risk_rating = calculate_risk_rating(risk_ratings)
-
-    return cve_service_api.CVE(
-        risk=risk_rating,
-        description=description,
-        fixed_version=fixed_version,
-        cvss_v3_vector=cvss_v3_vector,
-    )
+    return risk_rating, cve_list_details
 
 
 def calculate_risk_rating(risk_ratings: list[str]) -> str:

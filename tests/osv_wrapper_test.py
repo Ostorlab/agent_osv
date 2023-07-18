@@ -35,35 +35,12 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
 
     assert parsed_data_list[0].risk_rating.name == "HIGH"
     assert (
-        "Dependency `protobuf` with version `3.20.1` found in `lockfile` has a "
-        "security issue. The issue `protobuf-cpp and protobuf-python have potential "
-        "Denial of Service issue` is identified by CVE `CVE-2022-1941`.\n"
-        " The issue was fixed in version `3.18.3`."
-    ) in parsed_data_list[0].technical_detail
+        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1941"
+        in parsed_data_list[0].technical_detail
+    )
     assert "version `3.18.3`" in parsed_data_list[0].technical_detail
-
-
-def testConstructTechnicalDetail_whenAllArgs_returnTechnicalDetail() -> None:
-    package_name = "example-package"
-    package_version = "1.0.0"
-    file_type = "requirements.txt"
-    vuln_aliases = ["CVE-2022-1234"]
-    vuln_id = "VULN-123"
-
-    expected_output = (
-        "Dependency `example-package` with version `1.0.0` found in "
-        "`requirements.txt` has a security issue. The issue `Summary of the issue` is "
-        "identified by CVE `CVE-2022-1234`.\n"
-        " The issue was fixed in version `VULN-123`."
+    assert len(parsed_data_list[0].entry.references) == 7
+    assert (
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-1941"
+        in parsed_data_list[0].entry.references
     )
-
-    technical_detail = osv_output_handler.construct_technical_detail(
-        package_name,
-        package_version,
-        file_type,
-        vuln_aliases,
-        vuln_id,
-        summary="Summary of the issue",
-    )
-
-    assert technical_detail == expected_output
