@@ -122,6 +122,9 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                         )
                     ],
                 )
+                recommendation = f"We recommend updating `{package_name}` to the latest available version,"
+                if cve_data.fixed_version is not None:
+                    recommendation += f" since this issue is fixed in version `{cve_data.fixed_version}`."
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=summary,
@@ -129,6 +132,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                         short_description=summary,
                         description=cve_data.description,
                         references=vuln.get("references")[0],
+                        recommendation=recommendation,
                         security_issue=True,
                         privacy_issue=False,
                         has_public_exploit=False,
