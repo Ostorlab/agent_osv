@@ -29,7 +29,6 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(
 
 
 def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
-
     parsed_data = osv_output_handler.parse_results(fake_osv_output)
     parsed_data_list = list(parsed_data)
 
@@ -44,5 +43,7 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
         "https://nvd.nist.gov/vuln/detail/CVE-2022-1941"
         in parsed_data_list[0].entry.references
     )
-    assert "We recommend updating `protobuf` to the latest available version."\
-           in parsed_data_list[0].entry.recommendation
+    assert (
+        "We recommend updating `protobuf` to the latest available version."
+        in parsed_data_list[0].entry.recommendation
+    )
