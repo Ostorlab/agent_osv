@@ -55,15 +55,6 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
         except IndexError:
             fixed_version = ""
         try:
-            cvss_v3_vector = (
-                first_cve_item.get("impact", {})
-                .get("baseMetricV3", {})
-                .get("cvssV3", {})
-                .get("vectorString", "")
-            )
-        except IndexError:
-            cvss_v3_vector = ""
-        try:
             description = (
                 first_cve_item.get("cve", {})
                 .get("description", {})
@@ -73,16 +64,18 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
         except IndexError:
             description = ""
 
-        try:
-            risk = (
-                first_cve_item.get("impact", {})
-                .get("baseMetricV3", {})
-                .get("cvssV3", {})
-                .get("baseSeverity", "")
-            )
-        except IndexError:
-            risk = ""
-
+        risk = (
+            first_cve_item.get("impact", {})
+            .get("baseMetricV3", {})
+            .get("cvssV3", {})
+            .get("baseSeverity", "")
+        )
+        cvss_v3_vector = (
+            first_cve_item.get("impact", {})
+            .get("baseMetricV3", {})
+            .get("cvssV3", {})
+            .get("vectorString", "")
+        )
         return CVE(
             risk=risk,
             description=description,
