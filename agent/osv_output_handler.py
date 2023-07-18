@@ -94,6 +94,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                     f" found in the `{file_type}` `{file_name}` "
                     f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(cve_ids)}`."
                 )
+                recommendation = f"We recommend updating `{package_name}` to the latest available version."
                 yield Vulnerability(
                     entry=kb.Entry(
                         title=f"Use of Outdated Vulnerable Component: {package_name}@{package_version}",
@@ -107,6 +108,7 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                         targeted_by_malware=False,
                         targeted_by_ransomware=False,
                         targeted_by_nation_state=False,
+                        recommendation=recommendation,
                     ),
                     technical_detail=f"{vuln.get('details')} \n#### CVEs:\n {cve_list_details}",
                     risk_rating=RISK_RATING_MAPPING[risk_rating.upper()],
