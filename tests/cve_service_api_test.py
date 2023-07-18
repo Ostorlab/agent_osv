@@ -140,3 +140,19 @@ def testGetCveData_whenRateLimitException_waitFixedBeforeRetry(
     assert requests_mock.call_count == 10
     assert time_mocked.call_count == 9
     assert time_mocked.call_args_list[0][0][0] == 30.0
+
+
+def testGetCveData_whenJsonDataIsMissingItems_ReturnDefault(
+    requests_mock: rq_mock.mocker.Mocker,
+    fake_osv_output_missing_cve: str,
+) -> None:
+    requests_mock.get(
+        re.compile("https://services.nvd.nist.gov/.*"),
+        text=fake_osv_output_missing_cve,
+    )
+
+    cve = cve_service_api.get_cve_data_from_api("CVE-2021-37713")
+
+    assert requests_mock.call_count == 1
+    assert cve.risk == "HIGH"
+    assert cve.cvss_v3_vector == "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H"

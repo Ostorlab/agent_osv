@@ -21,7 +21,7 @@ from agent import osv_output_handler
         (["x", "high"], "HIGH"),
     ],
 )
-def testcalculateRiskRating_whenCveRiskRating_returnRiskRating(
+def testCalculateRiskRating_whenCveRiskRating_returnRiskRating(
     risk_ratings: list[str], expected_rating: str
 ) -> None:
     assert osv_output_handler.calculate_risk_rating(risk_ratings) == expected_rating
