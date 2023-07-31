@@ -24,6 +24,15 @@ def scan_message_file() -> message.Message:
 
 
 @pytest.fixture
+def scan_message_bad_file() -> message.Message:
+    """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    path = f"{pathlib.Path(__file__).parent.parent}/tests/files/package_lock.json"
+    msg_data = {"content": b"\xdd\xff\x00", "path": path}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
 def empty_scan_message_file() -> message.Message:
     """Creates empty message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"

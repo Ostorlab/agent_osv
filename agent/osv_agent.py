@@ -87,7 +87,7 @@ def _run_osv(path: str, content: bytes) -> str | None:
         path: The file path.
         content: Scanned file content
     """
-    decoded_content = content.decode("utf-8")
+    decoded_content = content.decode("utf-8", errors="ignore")
     file_name = pathlib.Path(path)
     file_name.write_text(decoded_content, encoding="utf-8")
     for command in _construct_commands(file_name.name):
