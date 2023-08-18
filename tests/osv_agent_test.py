@@ -47,7 +47,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     assert len(agent_mock) > 0
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 

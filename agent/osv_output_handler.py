@@ -97,7 +97,8 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 recommendation = f"We recommend updating `{package_name}` to the latest available version."
                 yield Vulnerability(
                     entry=kb.Entry(
-                        title=f"Use of Outdated Vulnerable Component: {package_name}@{package_version}",
+                        title=f"Use of Outdated Vulnerable Component: "
+                        f"{package_name}@{package_version}: {', '.join(cve_ids)}",
                         risk_rating=risk_rating.upper(),
                         short_description=vuln.get("summary", ""),
                         description=description,
