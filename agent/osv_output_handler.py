@@ -3,7 +3,7 @@ import dataclasses
 import json
 import logging
 import pathlib
-from typing import Iterator, Any, Tuple, List
+from typing import Iterator, Any, Tuple, List, Dict
 import re
 
 
@@ -158,7 +158,9 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     return "POTENTIALLY"
 
 
-def _extract_cve_reference_advisory(references: List[str]) -> str:
+def _extract_cve_reference_advisory(
+    references: List[Dict[str, str]]
+) -> str | List[str]:
     for reference in references:
         if reference["type"] == "ADVISORY":
             cve_match = re.match(CVE_PATTERN, reference["url"])
