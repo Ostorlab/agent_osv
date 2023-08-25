@@ -144,11 +144,11 @@ def testGetCveData_whenRateLimitException_waitFixedBeforeRetry(
 
 def testGetCveData_whenJsonDataIsMissingItems_ReturnDefault(
     requests_mock: rq_mock.mocker.Mocker,
-    fake_osv_output_missing_cve: str,
+    nvd_output: str,
 ) -> None:
     requests_mock.get(
         re.compile("https://services.nvd.nist.gov/.*"),
-        text=fake_osv_output_missing_cve,
+        text=nvd_output,
     )
 
     cve = cve_service_api.get_cve_data_from_api("CVE-2021-37713")

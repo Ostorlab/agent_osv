@@ -168,6 +168,18 @@ def osv_output_missing_cve() -> str:
     return data
 
 
+@pytest.fixture(name="nvd_output")
+def nvd_output() -> str:
+    """Return a temporary file and write JSON data to it"""
+    with open(
+        f"{pathlib.Path(__file__).parent.parent}/tests/files/nvd_output.json",
+        "r",
+        encoding="utf-8",
+    ) as of:
+        data = of.read()
+    return data
+
+
 @pytest.fixture
 def output_file(tmp_path: pathlib.Path) -> str:
     """Create a temporary file and write JSON data to it"""
