@@ -3,7 +3,9 @@ import dataclasses
 import json
 import logging
 import pathlib
-from typing import Iterator, Any, Tuple
+from typing import Iterator, Any, Tuple, List, Dict
+import re
+
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
@@ -18,6 +20,7 @@ RISK_RATING_MAPPING = {
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
+CVE_PATTERN = r".*/(CVE-[0-9]+-[0-9]+)"
 
 logging.basicConfig(
     format="%(message)s",
@@ -88,6 +91,8 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
             package_version = package.get("package", {}).get("version", "")
             for vuln in package.get("vulnerabilities", []):
                 cve_ids = vuln.get("aliases", "")
+                if cve_ids == "" and vuln.get("references") is not None:
+                    cve_ids = _extract_cve_reference_advisory(vuln["references"])
                 risk_rating, cve_list_details = _aggregate_cves(cve_ids=cve_ids)
                 description = (
                     f"Dependency `{package_name}` with version `{package_version}`"
@@ -151,3 +156,14 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
         if rating in priority_levels:
             return rating
     return "POTENTIALLY"
+
+
+def _extract_cve_reference_advisory(
+    references: List[Dict[str, str]]
+) -> str | List[str]:
+    for reference in references:
+        if reference["type"] == "ADVISORY":
+            cve_match = re.match(CVE_PATTERN, reference["url"], re.IGNORECASE)
+            if cve_match is not None:
+                return [cve_match.group(1)]
+    return ""

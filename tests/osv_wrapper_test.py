@@ -47,3 +47,32 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
         "We recommend updating `protobuf` to the latest available version."
         in parsed_data_list[0].entry.recommendation
     )
+
+
+def testParseResults_withFileMissingCVE_returnData(
+    fake_osv_output_missing_cve: str,
+) -> None:
+    parsed_data = osv_output_handler.parse_results(fake_osv_output_missing_cve)
+    parsed_data_list = list(parsed_data)
+
+    assert len(parsed_data_list) == 2
+    assert parsed_data_list[0].risk_rating.name == "HIGH"
+    assert (
+        "Use of Outdated Vulnerable Component: dio@4.0.6: CVE-2021-31402"
+        in parsed_data_list[0].entry.title
+    )
+    assert "4.0.0" in parsed_data_list[0].technical_detail
+    assert len(parsed_data_list[0].entry.references) == 7
+    assert (
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-31402"
+        in parsed_data_list[0].entry.references
+    )
+    assert (
+        "We recommend updating `dio` to the latest available version."
+        in parsed_data_list[0].entry.recommendation
+    )
+    assert (
+        "Use of Outdated Vulnerable Component: dio@4.0.6: CVE-2021-31402"
+        in parsed_data_list[1].entry.title
+    )
+    assert "5.0.0" in parsed_data_list[1].technical_detail
