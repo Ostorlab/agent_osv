@@ -20,7 +20,7 @@ RISK_RATING_MAPPING = {
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
-CVE_PATTERN = r".*/(CVE-.*-.*)"
+CVE_PATTERN = r".*/(CVE-[0-9]+-[0-9]+)"
 
 logging.basicConfig(
     format="%(message)s",
