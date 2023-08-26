@@ -163,7 +163,7 @@ def _extract_cve_reference_advisory(
 ) -> str | List[str]:
     for reference in references:
         if reference["type"] == "ADVISORY":
-            cve_match = re.match(CVE_PATTERN, reference["url"])
+            cve_match = re.match(CVE_PATTERN, reference["url"], re.IGNORECASE)
             if cve_match is not None:
                 return [cve_match.group(1)]
     return ""
