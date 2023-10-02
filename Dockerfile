@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine as go_stage
+FROM golang:1.21-alpine as go_stage
 
 RUN go install github.com/google/osv-scanner/cmd/osv-scanner@v1
 
