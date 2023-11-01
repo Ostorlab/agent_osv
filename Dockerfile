@@ -3,7 +3,7 @@ FROM golang:1.21-alpine as go_stage
 RUN go install github.com/google/osv-scanner/cmd/osv-scanner@v1
 
 
-FROM python:3.10-alpine as base
+FROM python:3.11-alpine as base
 FROM base as builder
 
 RUN apk add build-base
@@ -22,4 +22,4 @@ ENV PYTHONPATH=/app
 COPY agent /app/agent
 COPY ostorlab.yaml /app/agent/ostorlab.yaml
 WORKDIR /app
-CMD ["python3", "/app/agent/osv_agent.py"]
+CMD ["python3.11", "/app/agent/osv_agent.py"]
