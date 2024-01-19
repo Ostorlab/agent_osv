@@ -8,5 +8,9 @@ in_selectors:
   - v3.asset.file
 out_selectors:
   - v3.report.vulnerability
+args:
+  - name: "nvd_api_key"
+    type: "string"
+    description: "NVD api key."
 docker_file_path : Dockerfile
 docker_build_root : .

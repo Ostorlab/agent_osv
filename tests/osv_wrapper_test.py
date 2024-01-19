@@ -37,7 +37,10 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
         "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1941"
         in parsed_data_list[0].technical_detail
     )
-    assert "version `3.18.3`" in parsed_data_list[0].technical_detail
+    assert (
+        "We recommend upgrading to versions 3.18.3, 3.19.5, 3.20.2, 3.21.6"
+        in parsed_data_list[0].technical_detail
+    )
     assert len(parsed_data_list[0].entry.references) == 7
     assert (
         "https://nvd.nist.gov/vuln/detail/CVE-2022-1941"
