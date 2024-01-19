@@ -7,8 +7,10 @@ import typing
 
 import requests
 from ostorlab.agent import agent
+from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
 from agent import osv_output_handler
@@ -103,6 +105,14 @@ class OSVAgent(
 ):
     """OSV agent."""
 
+    def __init__(
+        self,
+        agent_definition: agent_definitions.AgentDefinition,
+        agent_settings: runtime_definitions.AgentSettings,
+    ) -> None:
+        super().__init__(agent_definition, agent_settings)
+        self.api_key = self.args.get("nvd_api_key", None)
+
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
@@ -121,7 +131,7 @@ class OSVAgent(
 
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
-        parsed_output = osv_output_handler.parse_results(output)
+        parsed_output = osv_output_handler.parse_results(output, self.api_key)
         for vuln in parsed_output:
             logger.info("Reporting vulnerability.")
             self.report_vulnerability(

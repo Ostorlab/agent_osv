@@ -68,7 +68,7 @@ def _build_references(references: list[dict[str, str]]) -> dict[str, str]:
     return references_list
 
 
-def parse_results(output: str) -> Iterator[Vulnerability]:
+def parse_results(output: str, api_key: str | None = None) -> Iterator[Vulnerability]:
     """Parses JSON generated OSV results and yield vulnerability entries.
     Args:
         output: OSV json output file path.
@@ -93,7 +93,9 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 cve_ids = vuln.get("aliases", "")
                 if cve_ids == "" and vuln.get("references") is not None:
                     cve_ids = _extract_cve_reference_advisory(vuln["references"])
-                risk_rating, cve_list_details = _aggregate_cves(cve_ids=cve_ids)
+                risk_rating, cve_list_details = _aggregate_cves(
+                    cve_ids=cve_ids, api_key=api_key
+                )
                 description = (
                     f"Dependency `{package_name}` with version `{package_version}`"
                     f" found in the `{file_type}` `{file_name}` "
@@ -121,13 +123,13 @@ def parse_results(output: str) -> Iterator[Vulnerability]:
                 )
 
 
-def _aggregate_cves(cve_ids: list[str]) -> Tuple[str, str]:
+def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> Tuple[str, str]:
     """Generate the description for the vulnerability from all the related CVEs."""
     risk_ratings = []
     cve_list_details = ""
     for cve_id in cve_ids:
         cve_list_details += f"- [{cve_id}]({CVE_MITRE_URL}{cve_id}) "
-        cve_data = cve_service_api.get_cve_data_from_api(cve_id)
+        cve_data = cve_service_api.get_cve_data_from_api(cve_id, api_key)
         if cve_data.description is not None and cve_data.description != "":
             cve_list_details += f": {cve_data.description}"
         if cve_data.fixed_version is not None and cve_data.fixed_version != "":

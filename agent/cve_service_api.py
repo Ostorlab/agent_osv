@@ -5,7 +5,7 @@ import json
 import requests
 import tenacity
 
-CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cve/1.0/"
+CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId="
 REQUEST_TIMEOUT = 60
 
 
@@ -31,7 +31,7 @@ default_cve = CVE(
     ),
     retry_error_callback=lambda retry_state: default_cve,
 )
-def get_cve_data_from_api(cve_id: str) -> CVE:
+def get_cve_data_from_api(cve_id: str, api_key: str | None = None) -> CVE:
     """Given a CVE ID, retrieve the risk rating from the MITRE CVE API.
     Args:
         cve_id: the cve id to obtain its details
@@ -39,41 +39,46 @@ def get_cve_data_from_api(cve_id: str) -> CVE:
         CVE object.
     """
     url = f"{CVE_MITRE_BASE_URL}{cve_id}"
-
-    response = requests.get(url, timeout=REQUEST_TIMEOUT)
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if api_key is not None:
+        headers["apiKey"] = api_key
+    response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
     data = json.loads(response.text)
-    cve_items = data.get("result", {}).get("CVE_Items", [{}])
+    cve_items = data.get("vulnerabilities", {})
     if len(cve_items) > 0:
         first_cve_item = cve_items[0]
         try:
             fixed_version = (
-                first_cve_item.get("configurations", {})
+                first_cve_item.get("cve", {})
+                .get("configurations", [{}])[0]
                 .get("nodes", [{}])[0]
-                .get("cpe_match", [{}])[-1]
+                .get("cpeMatch", [{}])[-1]
                 .get("versionEndExcluding", "")
             )
         except IndexError:
             fixed_version = ""
         try:
-            description = (
-                first_cve_item.get("cve", {})
-                .get("description", {})
-                .get("description_data", [{}])[0]
-                .get("value", "")
+            descriptions = first_cve_item.get("cve", {}).get("descriptions")
+            description = next(
+                item["value"] for item in descriptions if item["lang"] == "en"
             )
         except IndexError:
             description = ""
 
         risk = (
-            first_cve_item.get("impact", {})
-            .get("baseMetricV3", {})
-            .get("cvssV3", {})
+            first_cve_item.get("cve", {})
+            .get("metrics", {})
+            .get("cvssMetricV31", [{}])[0]
+            .get("cvssData", {})
             .get("baseSeverity", "")
         )
         cvss_v3_vector = (
-            first_cve_item.get("impact", {})
-            .get("baseMetricV3", {})
-            .get("cvssV3", {})
+            first_cve_item.get("cve", {})
+            .get("metrics", {})
+            .get("cvssMetricV31", [{}])[0]
+            .get("cvssData", {})
             .get("vectorString", "")
         )
         return CVE(

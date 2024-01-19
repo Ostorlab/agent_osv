@@ -7,105 +7,18 @@ from pytest_mock import plugin
 from agent import cve_service_api
 
 
-def testGetCveData_withResponse_returnRiskRating(
-    mocker: plugin.MockerFixture,
-    requests_mock: rq_mock.mocker.Mocker,
-) -> None:
-    cve_data_json = """
-    {
-   "resultsPerPage":1,
-   "startIndex":0,
-   "totalResults":1,
-   "result":{
-      "CVE_data_type":"CVE",
-      "CVE_data_format":"MITRE",
-      "CVE_data_version":"4.0",
-      "CVE_data_timestamp":"2023-07-17T10:59Z",
-      "CVE_Items":[
-         {
-            "cve":{
-               "data_type":"CVE",
-               "data_format":"MITRE",
-               "data_version":"4.0",
-               "CVE_data_meta":{
-                  "ID":"CVE-2021-44228",
-                  "ASSIGNER":"security@apache.org"
-               },
-               "references":{
-                  "reference_data":[]
-               },
-               "description":{
-                  "description_data":[
-                     {
-                        "lang":"en",
-                        "value":""
-                     }
-                  ]
-               }
-            },
-            "configurations":{
-               "CVE_data_version":"4.0",
-               "nodes":[
-                  {},
-               ]
-            },
-            "impact":{
-               "baseMetricV3":{
-                  "cvssV3":{
-                     "version":"3.1",
-                     "vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
-                     "attackVector":"NETWORK",
-                     "attackComplexity":"LOW",
-                     "privilegesRequired":"NONE",
-                     "userInteraction":"NONE",
-                     "scope":"CHANGED",
-                     "confidentialityImpact":"HIGH",
-                     "integrityImpact":"HIGH",
-                     "availabilityImpact":"HIGH",
-                     "baseScore":10.0,
-                     "baseSeverity":"CRITICAL"
-                  },
-                  "exploitabilityScore":3.9,
-                  "impactScore":6.0
-               },
-               "baseMetricV2":{
-                  "cvssV2":{
-                     "version":"2.0",
-                     "vectorString":"AV:N/AC:M/Au:N/C:C/I:C/A:C",
-                     "accessVector":"NETWORK",
-                     "accessComplexity":"MEDIUM",
-                     "authentication":"NONE",
-                     "confidentialityImpact":"COMPLETE",
-                     "integrityImpact":"COMPLETE",
-                     "availabilityImpact":"COMPLETE",
-                     "baseScore":9.3
-                  },
-                  "severity":"HIGH",
-                  "exploitabilityScore":8.6,
-                  "impactScore":10.0,
-                  "acInsufInfo":false,
-                  "obtainAllPrivilege":false,
-                  "obtainUserPrivilege":false,
-                  "obtainOtherPrivilege":false,
-                  "userInteractionRequired":false
-               }
-            },
-            "publishedDate":"2021-12-10T10:15Z",
-            "lastModifiedDate":"2023-04-03T20:15Z"
-         }
-      ]
-   }
-}
-"""
-    requests_mock.get(
-        re.compile("https://services.nvd.nist.gov/.*"),
-        text=cve_data_json,
+def testGetCveData_withResponse_returnRiskRating() -> None:
+    """Get the information of a real CVE."""
+    cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-31402")
+
+    assert cve_data.risk == "HIGH"
+    assert (
+        cve_data.description
+        == "The dio package 4.0.0 for Dart allows CRLF injection if the attacker controls the HTTP method string, "
+        "a different vulnerability than CVE-2020-35669."
     )
-    mocker.patch("time.sleep")
-
-    cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-12345")
-
-    assert cve_data.risk == "POTENTIALLY"
+    assert cve_data.fixed_version == "5.0.0"
+    assert cve_data.cvss_v3_vector == "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
 
 
 def testGetCveData_whenException_returnDefaultValue(
@@ -155,4 +68,4 @@ def testGetCveData_whenJsonDataIsMissingItems_ReturnDefault(
 
     assert requests_mock.call_count == 1
     assert cve.risk == "HIGH"
-    assert cve.cvss_v3_vector == "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H"
+    assert cve.cvss_v3_vector == "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
