@@ -8,6 +8,7 @@ from agent import cve_service_api
 
 
 def testGetCveData_withResponse_returnRiskRating() -> None:
+    """Get the information of a real CVE."""
     cve_data = cve_service_api.get_cve_data_from_api("CVE-2021-31402")
 
     assert cve_data.risk == "HIGH"
