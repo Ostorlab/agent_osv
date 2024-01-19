@@ -159,7 +159,7 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
 
 
 def _extract_cve_reference_advisory(
-    references: List[Dict[str, str]]
+    references: List[Dict[str, str]],
 ) -> str | List[str]:
     for reference in references:
         if reference["type"] == "ADVISORY":
