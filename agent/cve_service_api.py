@@ -39,7 +39,6 @@ def get_cve_data_from_api(cve_id: str, api_key: str | None = None) -> CVE:
         CVE object.
     """
     url = f"{CVE_MITRE_BASE_URL}{cve_id}"
-    # api_key = "08f18e8b-7a76-4398-b90d-33e0ce93b442"
     headers = {
         "Content-Type": "application/json",
     }
