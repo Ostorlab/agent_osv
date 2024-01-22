@@ -88,7 +88,7 @@ def scan_message_file_content_url() -> message.Message:
 
 @pytest.fixture()
 def test_agent(
-    agent_persist_mock: Dict[str | bytes, str | bytes]
+    agent_persist_mock: Dict[str | bytes, str | bytes],
 ) -> osv_agent.OSVAgent:
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
         definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
