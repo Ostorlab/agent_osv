@@ -15,24 +15,23 @@ def testQueryOSVOutput_withPackage_returnListOfVulnerabilities() -> None:
     assert "Jinja2 sandbox escape via string formatting" in osv_output
 
 
-def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData() -> None:
-    """Get the information of a real CVEs."""
-    cves_data = osv_service_api.parse_output(OSV_OUTPUT)
+def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData(
+    osv_api_output: str,
+) -> None:
+    """Parse the output of osv api call."""
+    cves_data = osv_service_api.parse_output(osv_api_output)
 
-    assert len(cves_data) == 11
-    assert cves_data[0].risk == "HIGH"
-    assert cves_data[0].cvss_v3_vector == "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
-    assert cves_data[0].fixed_version == "2.10.1"
+    assert len(cves_data) == 7
+    assert cves_data[0].risk == "LOW"
+    assert cves_data[0].fixed_version == "4.17.5"
     assert (
-        "In Pallets Jinja before 2.10.1, `str.format_map` allows a sandbox escape."
+        "Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. "
         in cves_data[0].description
     )
-    assert cves_data[1].risk == "MEDIUM"
-    assert cves_data[1].fixed_version == "2.7.2"
-    assert cves_data[9].risk == "POTENTIALLY"
+    assert cves_data[1].risk == "HIGH"
+    assert cves_data[1].fixed_version == "4.17.11"
+    assert cves_data[6].risk == "HIGH"
     assert (
-        cves_data[9].description
-        == "In Pallets Jinja before 2.8.1, str.format allows a sandbox escape."
+        cves_data[6].description
+        == "`lodash` versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
     )
-    assert cves_data[10].risk == "MEDIUM"
-    assert cves_data[10].fixed_version == "2.11.3"
