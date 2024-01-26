@@ -14,6 +14,7 @@ from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
 from agent import osv_output_handler
+from agent.api_manager import osv_service_api
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -118,16 +119,51 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
-        content = _get_content(message)
-        if content is None or content == b"":
-            logger.warning("Message file content is empty.")
-            return
-        for file_name in SUPPORTED_OSV_FILE_NAMES:
-            scan_results = _run_osv(file_name, content)
-            if scan_results is not None:
-                logger.info("Found valid name for file: %s", file_name)
-                self._emit_results(scan_results)
-                break
+        if message.selector == "v3.asset.file":
+            content = _get_content(message)
+            if content is None or content == b"":
+                logger.warning("Message file content is empty.")
+                return
+            for file_name in SUPPORTED_OSV_FILE_NAMES:
+                scan_results = _run_osv(file_name, content)
+                if scan_results is not None:
+                    logger.info("Found valid name for file: %s", file_name)
+                    self._emit_results(scan_results)
+                    break
+
+        elif message.selector in [
+            "v3.fingerprint.file.android.library",
+            "v3.fingerprint.file.ios.library",
+            "v3.fingerprint.file.library",
+        ]:
+            package_name = message.data.get("library_name")
+            package_version = message.data.get("library_version")
+            package_type = message.data.get("library_type")
+
+            api_result = osv_service_api.query_osv_api(
+                package_name=package_name,
+                version=package_version,
+                ecosystem=package_type,
+            )
+            if api_result is None:
+                return
+
+            parsed_osv_output = osv_service_api.parse_output(api_result, self.api_key)
+
+            if len(parsed_osv_output) == 0:
+                return
+
+            vulnz = osv_service_api.construct_vuln(
+                parsed_osv_output, package_name, package_version
+            )
+
+            for vuln in vulnz:
+                logger.info("Reporting vulnerability.")
+                self.report_vulnerability(
+                    entry=vuln.entry,
+                    technical_detail=vuln.technical_detail,
+                    risk_rating=vuln.risk_rating,
+                )
 
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""

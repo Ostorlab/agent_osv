@@ -178,3 +178,37 @@ def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName
 
     assert len(agent_mock) == 1
     assert mocked_requests.call_count == 1
+
+
+def testAgentOSV_whenFingerprintMessage_processMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file: message.Message,
+    osv_output_as_dict: dict[str, str],
+    fake_osv_output: str,
+    mocker: plugin.MockerFixture,
+    osv_api_output: str,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv scan a package.
+    """
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api", return_value=osv_api_output
+    )
+    selector = "v3.fingerprint.file.library"
+    msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
+    )
+    assert agent_mock[0].data["risk_rating"] == "LOW"
+    assert (
+        agent_mock[6].data["title"]
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
+    )
+    assert agent_mock[6].data["risk_rating"] == "HIGH"

@@ -55,7 +55,7 @@ def read_output_file_as_dict(output_file_path: str) -> dict[str, Any]:
     return data
 
 
-def _build_references(references: list[dict[str, str]]) -> dict[str, str]:
+def build_references(references: list[dict[str, str]]) -> dict[str, str]:
     """Build references from the OSV output
     Args:
         references: references from OSV output
@@ -109,7 +109,7 @@ def parse_results(output: str, api_key: str | None = None) -> Iterator[Vulnerabi
                         risk_rating=risk_rating.upper(),
                         short_description=vuln.get("summary", ""),
                         description=description,
-                        references=_build_references(vuln.get("references", [])),
+                        references=build_references(vuln.get("references", [])),
                         security_issue=True,
                         privacy_issue=False,
                         has_public_exploit=False,

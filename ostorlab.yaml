@@ -6,6 +6,9 @@ description: |
 license: Apache-2.0
 in_selectors:
   - v3.asset.file
+  - v3.fingerprint.file.android.library
+  - v3.fingerprint.file.ios.library
+  - v3.fingerprint.file.library
 out_selectors:
   - v3.report.vulnerability
 args:
