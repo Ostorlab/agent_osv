@@ -8,6 +8,7 @@ def testQueryOSVOutput_withPackage_returnListOfVulnerabilities() -> None:
         package_name="jinja2", version="2.4.1", ecosystem="PyPI"
     )
 
+    assert osv_output is not None
     assert "vulns" in osv_output
     assert "Jinja2 sandbox escape via string formatting" in osv_output
 
