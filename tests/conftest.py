@@ -191,12 +191,11 @@ def output_file(tmp_path: pathlib.Path) -> str:
 
 
 @pytest.fixture(name="osv_api_output")
-def osv_api_output() -> str:
-    """Return a temporary file and write JSON data to it"""
-    with open(
-        f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_api_output.json",
-        "r",
-        encoding="utf-8",
-    ) as of:
-        data = of.read()
-    return data
+def osv_api_output() -> dict[str, Any]:
+    """Read and return the OSV API output from a file as a dict."""
+    file_path = (
+        f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_api_output.json"
+    )
+    data = pathlib.Path(file_path).read_text(encoding="utf-8")
+    json_data: dict[str, Any] = json.loads(data)
+    return json_data

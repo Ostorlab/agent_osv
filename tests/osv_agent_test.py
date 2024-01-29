@@ -1,6 +1,6 @@
 """Unittests for OSV agent."""
 import subprocess
-from typing import Union, Callable
+from typing import Union, Callable, Any
 
 import requests_mock as rq_mock
 from ostorlab.agent.message import message
@@ -184,13 +184,10 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
-    scan_message_file: message.Message,
-    osv_output_as_dict: dict[str, str],
-    fake_osv_output: str,
     mocker: plugin.MockerFixture,
-    osv_api_output: str,
+    osv_api_output: dict[str, Any],
 ) -> None:
-    """Unittest for the full life cycle of the agent:
+    """Unit test for the full life cycle of the agent:
     case where the osv scan a package.
     """
     mocker.patch(

@@ -1,4 +1,6 @@
 """Unit tests for OSV service api."""
+from typing import Any
+
 from agent.api_manager import osv_service_api
 
 
@@ -9,12 +11,16 @@ def testQueryOSVOutput_withPackage_returnListOfVulnerabilities() -> None:
     )
 
     assert osv_output is not None
-    assert "vulns" in osv_output
-    assert "Jinja2 sandbox escape via string formatting" in osv_output
+    assert isinstance(osv_output, dict) is True
+    assert len(osv_output["vulns"]) == 11
+    assert any(
+        "Jinja2 sandbox escape via string formatting" in vuln["summary"]
+        for vuln in osv_output["vulns"]
+    )
 
 
 def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData(
-    osv_api_output: str,
+    osv_api_output: dict[str, Any],
 ) -> None:
     """Parse the output of osv api call."""
     cves_data = osv_service_api.parse_output(osv_api_output)
