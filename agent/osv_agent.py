@@ -127,10 +127,10 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
-        if message.selector.startswith("v3.asset.file"):
+        if message.selector.startswith("v3.asset.file") is True:
             self._process_asset_file(message)
 
-        elif message.selector.startswith("v3.fingerprint.file"):
+        elif message.selector.startswith("v3.fingerprint.file") is True:
             self._process_fingerprint_file(message)
 
     def _emit_results(self, output: str) -> None:
