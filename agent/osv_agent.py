@@ -127,21 +127,16 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
-        if message.selector == "v3.asset.file":
+        if message.selector.startswith("v3.asset.file"):
             self._process_asset_file(message)
 
-        elif message.selector in [
-            "v3.fingerprint.file.android.library",
-            "v3.fingerprint.file.ios.library",
-            "v3.fingerprint.file.library",
-        ]:
+        elif message.selector.startswith("v3.fingerprint.file"):
             self._process_fingerprint_file(message)
 
     def _emit_results(self, output: str) -> None:
         """Parses results and emits vulnerabilities."""
         parsed_output = osv_output_handler.parse_results(output, self.api_key)
         for vuln in parsed_output:
-            logger.info("Reporting vulnerability.")
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
@@ -177,7 +172,7 @@ class OSVAgent(
         api_result = osv_service_api.query_osv_api(
             package_name=package_name,
             version=package_version,
-            ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type), ""),
+            ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
         )
         if api_result is None:
             return None

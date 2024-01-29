@@ -40,7 +40,7 @@ class VulnData:
     else None,
 )
 def query_osv_api(
-    package_name: str, version: str, ecosystem: str
+    package_name: str, version: str, ecosystem: str | None = None
 ) -> dict[str, Any] | None:
     """Query the OSV API with the specified version, package name, and ecosystem.
     Args:
@@ -50,12 +50,18 @@ def query_osv_api(
     Returns:
         The API response text if successful, None otherwise.
     """
-    data = {
-        "version": version,
-        "package": {"name": package_name, "ecosystem": ecosystem},
-    }
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(OSV_ENDPOINT, data=json.dumps(data), headers=headers)
+    if ecosystem is not None:
+        data = {
+            "version": version,
+            "package": {"name": package_name, "ecosystem": ecosystem},
+        }
+    else:
+        data = {
+            "version": version,
+            "package": {"name": package_name},
+        }
+
+    response = requests.post(OSV_ENDPOINT, json=data)
 
     if response.status_code == 200:
         resp: dict[str, Any] = response.json()
@@ -127,7 +133,7 @@ def construct_vuln(
     """
     for vuln in parsed_vulns:
         description = (
-            f"Dependency `{package_name}` with version `{package_version}`"
+            f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
             f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
         )
         recommendation = (
@@ -136,7 +142,7 @@ def construct_vuln(
         yield osv_output_handler.Vulnerability(
             entry=kb.Entry(
                 title=f"Use of Outdated Vulnerable Component: "
-                f"{package_name}@{package_version}: {', '.join(vuln.cves)}",
+                f"{package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}",
                 risk_rating=vuln.risk,
                 short_description=vuln.summary,
                 description=description,

@@ -201,11 +201,11 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[6].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
