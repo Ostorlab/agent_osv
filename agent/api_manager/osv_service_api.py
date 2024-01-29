@@ -1,3 +1,5 @@
+"""This module provides utility functions to query the OSv API for vulnerability information
+related to a specific package version."""
 import dataclasses
 import json
 import logging

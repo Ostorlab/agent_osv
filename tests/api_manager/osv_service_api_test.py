@@ -13,9 +13,12 @@ def testQueryOSVOutput_withPackage_returnListOfVulnerabilities() -> None:
     assert osv_output is not None
     assert isinstance(osv_output, dict) is True
     assert len(osv_output["vulns"]) == 11
-    assert any(
-        "Jinja2 sandbox escape via string formatting" in vuln["summary"]
-        for vuln in osv_output["vulns"]
+    assert (
+        any(
+            "Jinja2 sandbox escape via string formatting" in vuln["summary"]
+            for vuln in osv_output["vulns"]
+        )
+        is True
     )
 
 
