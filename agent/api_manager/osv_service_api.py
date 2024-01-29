@@ -40,7 +40,7 @@ class VulnData:
     else None,
 )
 def query_osv_api(
-    package_name: str | None, version: str | None, ecosystem: str | None
+    package_name: str, version: str, ecosystem: str
 ) -> dict[str, Any] | None:
     """Query the OSV API with the specified version, package name, and ecosystem.
     Args:
