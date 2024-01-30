@@ -1,6 +1,6 @@
 """Unittests for OSV agent."""
 import subprocess
-from typing import Union, Callable
+from typing import Callable, Any
 
 import requests_mock as rq_mock
 from ostorlab.agent.message import message
@@ -13,7 +13,7 @@ from agent import osv_agent
 def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
     osv_output_as_dict: dict[str, str],
@@ -55,7 +55,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
 def testAgentOSV_whenAnalysisRunsWithBadFile_noCrash(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_bad_file: message.Message,
     mocker: plugin.MockerFixture,
     osv_output_as_dict: dict[str, str],
@@ -92,7 +92,7 @@ def testAgentOSV_whenAnalysisRunsWithBadFile_noCrash(
 def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     empty_scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
@@ -112,7 +112,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithoutContent_notProcessMessage(
 def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     invalid_scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
@@ -132,7 +132,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
 def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file_no_name: message.Message,
     mocker: plugin.MockerFixture,
     mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
@@ -154,7 +154,7 @@ def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     requests_mock: rq_mock.mocker.Mocker,
-    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file_content_url: message.Message,
     mocker: plugin.MockerFixture,
     mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
@@ -178,3 +178,34 @@ def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName
 
     assert len(agent_mock) == 1
     assert mocked_requests.call_count == 1
+
+
+def testAgentOSV_whenFingerprintMessage_processMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    osv_api_output: dict[str, Any],
+) -> None:
+    """Unit test for the full life cycle of the agent:
+    case where the osv scan a package.
+    """
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api", return_value=osv_api_output
+    )
+    selector = "v3.fingerprint.file.library"
+    msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+    )
+    assert agent_mock[0].data["risk_rating"] == "LOW"
+    assert (
+        agent_mock[6].data["title"]
+        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
+    )
+    assert agent_mock[6].data["risk_rating"] == "HIGH"

@@ -14,6 +14,7 @@ from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
 from agent import osv_output_handler
+from agent.api_manager import osv_service_api
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -34,6 +35,14 @@ SUPPORTED_OSV_FILE_NAMES = [
     "requirements.txt",
     "yarn.lock",
 ]
+OSV_ECOSYSTEM_MAPPING = {
+    "JAVASCRIPT_LIBRARY": "npm",
+    "JAVA_LIBRARY": "Maven",
+    "FLUTTER_FRAMEWORK": "Pub",
+    "CORDOVA_LIBRARY": "npm",
+    "DOTNET_FRAMEWORK": "NuGet",
+    "IOS_FRAMEWORK": "SwiftURL",
+}
 
 logging.basicConfig(
     format="%(message)s",
@@ -118,6 +127,24 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
+        if message.selector.startswith("v3.asset.file") is True:
+            self._process_asset_file(message)
+
+        elif message.selector.startswith("v3.fingerprint.file") is True:
+            self._process_fingerprint_file(message)
+
+    def _emit_results(self, output: str) -> None:
+        """Parses results and emits vulnerabilities."""
+        parsed_output = osv_output_handler.parse_results(output, self.api_key)
+        for vuln in parsed_output:
+            self.report_vulnerability(
+                entry=vuln.entry,
+                technical_detail=vuln.technical_detail,
+                risk_rating=vuln.risk_rating,
+            )
+
+    def _process_asset_file(self, message: m.Message) -> None:
+        """Process message of type v3.asset.file."""
         content = _get_content(message)
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
@@ -129,11 +156,37 @@ class OSVAgent(
                 self._emit_results(scan_results)
                 break
 
-    def _emit_results(self, output: str) -> None:
-        """Parses results and emits vulnerabilities."""
-        parsed_output = osv_output_handler.parse_results(output, self.api_key)
-        for vuln in parsed_output:
-            logger.info("Reporting vulnerability.")
+    def _process_fingerprint_file(self, message: m.Message) -> None:
+        """Process message of type v3.fingerprint.file."""
+        package_name = message.data.get("library_name")
+        package_version = message.data.get("library_version")
+        package_type = message.data.get("library_type")
+
+        if package_version is None:
+            logger.error("Error: Version must not be None.")
+            return None
+        if package_name is None:
+            logger.error("Error: Package name must not be None.")
+            return None
+
+        api_result = osv_service_api.query_osv_api(
+            package_name=package_name,
+            version=package_version,
+            ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
+        )
+        if api_result is None:
+            return None
+
+        parsed_osv_output = osv_service_api.parse_output(api_result, self.api_key)
+
+        if len(parsed_osv_output) == 0:
+            return None
+
+        vulnz = osv_service_api.construct_vuln(
+            parsed_osv_output, package_name, package_version
+        )
+
+        for vuln in vulnz:
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
