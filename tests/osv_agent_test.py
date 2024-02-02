@@ -274,7 +274,7 @@ def testAgentOSV_whenRiskInvalid_defaultToPotentially(
     mocker: plugin.MockerFixture,
     osv_api_output_risk_invalid: dict[str, Any],
 ) -> None:
-    """Ensure that the agent does not crash when the risk is missing and default to potentially."""
+    """Ensure that the agent does not crash when the risk is invalid and default to potentially."""
     mocker.patch(
         "agent.api_manager.osv_service_api.query_osv_api",
         return_value=osv_api_output_risk_invalid,
