@@ -7,7 +7,7 @@ from agent.api_manager import osv_service_api
 def testQueryOSVOutput_withPackage_returnListOfVulnerabilities() -> None:
     """Send request to osv and get the vulnerabilities."""
     osv_output = osv_service_api.query_osv_api(
-        package_name="opencv", version="6.1.0"
+        package_name="jinja2", version="2.4.1", ecosystem="PyPI"
     )
 
     assert osv_output is not None

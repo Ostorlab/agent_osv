@@ -135,7 +135,7 @@ def construct_vuln(
         recommendation = (
             f"We recommend updating `{package_name}` to the latest available version."
         )
-        if vuln.cves is None:
+        if len(vuln.cves) == 0:
             description = (
                 f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
                 f"has a security issue."
@@ -144,7 +144,9 @@ def construct_vuln(
             technical_detail = f"```{vuln.description}```"
         else:
             title = f"Use of Outdated Vulnerable Component: {package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}"
-            technical_detail = f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
+            technical_detail = (
+                f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
+            )
             description = (
                 f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
                 f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
