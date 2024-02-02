@@ -156,7 +156,7 @@ def construct_vuln(
                 recommendation=recommendation,
             ),
             technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
-            risk_rating=agent_report_vulnerability_mixin.RiskRating[vuln.risk],
+            risk_rating=agent_report_vulnerability_mixin.RiskRating[vuln.risk.upper()],
         )
 
 
