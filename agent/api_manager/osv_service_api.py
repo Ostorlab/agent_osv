@@ -137,18 +137,18 @@ def construct_vuln(
         )
         if len(vuln.cves) == 0:
             description = (
-                f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
+                f"Dependency `{package_name}` with version `{package_version}`"
                 f"has a security issue."
             )
-            title = f"Use of Outdated Vulnerable Component: {package_name}@{vuln.fixed_version}"
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}"
             technical_detail = f"```{vuln.description}```"
         else:
-            title = f"Use of Outdated Vulnerable Component: {package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}"
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}: {', '.join(vuln.cves)}"
             technical_detail = (
                 f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
             )
             description = (
-                f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
+                f"Dependency `{package_name}` with version `{package_version}`"
                 f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
             )
         yield osv_output_handler.Vulnerability(

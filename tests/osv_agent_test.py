@@ -201,12 +201,12 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[6].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
@@ -231,12 +231,12 @@ def testAgentOSV_whenRiskLower_doNotCrash(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[6].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
@@ -261,7 +261,7 @@ def testAgentOSV_whenRiskMissing_defaultToPotentially(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[3].data["risk_rating"] == "POTENTIALLY"
@@ -287,7 +287,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     assert len(agent_mock) == 2
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: opencv@6.1.0"
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
@@ -296,7 +296,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     )
     assert (
         agent_mock[1].data["title"]
-        == "Use of Outdated Vulnerable Component: opencv@6.1.0: CVE-2019-10061"
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
     )
     assert agent_mock[1].data["risk_rating"] == "CRITICAL"
     assert (
