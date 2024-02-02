@@ -40,7 +40,7 @@ class VulnData:
     else None,
 )
 def query_osv_api(
-    package_name: str, version: str, ecosystem: str | None
+    package_name: str, version: str, ecosystem: str | None = None
 ) -> dict[str, Any] | None:
     """Query the OSV API with the specified version, package name, and ecosystem.
     Args:
@@ -132,17 +132,26 @@ def construct_vuln(
         Vulnerability entry.
     """
     for vuln in parsed_vulns:
-        description = (
-            f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
-            f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
-        )
         recommendation = (
             f"We recommend updating `{package_name}` to the latest available version."
         )
+        if vuln.cves is None:
+            description = (
+                f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
+                f"has a security issue."
+            )
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{vuln.fixed_version}"
+            technical_detail = f"```{vuln.description}```"
+        else:
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}"
+            technical_detail = f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
+            description = (
+                f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
+                f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
+            )
         yield osv_output_handler.Vulnerability(
             entry=kb.Entry(
-                title=f"Use of Outdated Vulnerable Component: "
-                f"{package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}",
+                title=title,
                 risk_rating=vuln.risk,
                 short_description=vuln.summary,
                 description=description,
@@ -155,7 +164,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
+            technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[vuln.risk.upper()],
         )
 
