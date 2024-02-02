@@ -208,3 +208,12 @@ def osv_api_output_risk_lower() -> dict[str, Any]:
     data = pathlib.Path(file_path).read_text(encoding="utf-8")
     json_data: dict[str, Any] = json.loads(data)
     return json_data
+
+
+@pytest.fixture(name="osv_api_output_risk_missing")
+def osv_api_output_risk_missing() -> dict[str, Any]:
+    """Read and return the OSV API output from a file as a dict."""
+    file_path = f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_api_output_risk_missing.json"
+    data = pathlib.Path(file_path).read_text(encoding="utf-8")
+    json_data: dict[str, Any] = json.loads(data)
+    return json_data

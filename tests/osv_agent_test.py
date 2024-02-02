@@ -239,3 +239,29 @@ def testAgentOSV_whenRiskLower_doNotCrash(
         == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
+
+
+def testAgentOSV_whenRiskMissing_defaultToPotentially(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    osv_api_output_risk_missing: dict[str, Any],
+) -> None:
+    """Ensure that the agent does not crash when the risk is missing and default to potentially."""
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api",
+        return_value=osv_api_output_risk_missing,
+    )
+    selector = "v3.fingerprint.file.library"
+    msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+    )
+    assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
+    assert agent_mock[3].data["risk_rating"] == "POTENTIALLY"
