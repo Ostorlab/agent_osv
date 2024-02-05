@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 OSV_ENDPOINT = "https://api.osv.dev/v1/query"
 NUMBER_RETRIES = 3
 WAIT_BETWEEN_RETRIES = 2
+RISK_RATINGS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
 
 
 @dataclasses.dataclass
@@ -139,10 +140,6 @@ def construct_vuln(
         recommendation = (
             f"We recommend updating `{package_name}` to the latest available version."
         )
-        risk_ratings = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
-        if vuln.risk.upper() not in risk_ratings:
-            vuln.risk = "POTENTIALLY"
-        risk_rating = agent_report_vulnerability_mixin.RiskRating[vuln.risk.upper()]
         yield osv_output_handler.Vulnerability(
             entry=kb.Entry(
                 title=f"Use of Outdated Vulnerable Component: "
@@ -160,7 +157,11 @@ def construct_vuln(
                 recommendation=recommendation,
             ),
             technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
-            risk_rating=risk_rating,
+            risk_rating=agent_report_vulnerability_mixin.RiskRating[
+                vuln.risk.upper()
+                if vuln.risk.upper() in RISK_RATINGS
+                else "POTENTIALLY"
+            ],
         )
 
 
