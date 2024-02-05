@@ -167,7 +167,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
+            technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
                 if vuln.risk.upper() in RISK_RATINGS

@@ -291,9 +291,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[0].data["technical_detail"]
-        == """```Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script 
-        find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## 
-        Recommendation\n\nUpgrade to version 6.1.0.\n```"""
+        == """```Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n```"""
     )
     assert (
         agent_mock[1].data["title"]
