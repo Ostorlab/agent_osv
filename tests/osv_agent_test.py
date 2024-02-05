@@ -211,7 +211,7 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
 
-def testAgentOSV_whenRiskLower_doNotCrash(
+def testAgentOSV_whenRiskLower_doesNotCrash(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
@@ -268,10 +268,6 @@ def testAgentOSV_whenRiskMissing_defaultToPotentially(
 
 
 def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
-    test_agent: osv_agent.OSVAgent,
-    agent_mock: list[message.Message],
-    agent_persist_mock: dict[str | bytes, str | bytes],
-    mocker: plugin.MockerFixture,
 ) -> None:
     """Ensure that the agent always emits a vulnerability with a valid technical detail."""
     selector = "v3.fingerprint.file.library"
@@ -280,10 +276,9 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
         "library_version": "6.0.0",
         "library_type": "JAVASCRIPT_LIBRARY",
     }
-    msg = message.Message.from_data(selector, data=msg_data)
-
+    
     test_agent.process(msg)
-
+  
     assert len(agent_mock) == 2
     assert (
         agent_mock[0].data["title"]
@@ -304,4 +299,27 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
         == """```utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.``` 
 #### CVEs:
  CVE-2019-10061"""
+      
+      
+def testAgentOSV_whenRiskInvalid_defaultToPotentially(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    osv_api_output_risk_invalid: dict[str, Any],
+) -> None:
+    """Ensure that the agent does not crash when the risk is invalid and default to potentially."""
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api",
+        return_value=osv_api_output_risk_invalid,
+    )
+    selector = "v3.fingerprint.file.library"
+    msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert all(
+        agent_mock[i].data["risk_rating"] == "POTENTIALLY"
+        for i in range(len(agent_mock))
     )

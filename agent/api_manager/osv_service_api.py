@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 OSV_ENDPOINT = "https://api.osv.dev/v1/query"
 NUMBER_RETRIES = 3
 WAIT_BETWEEN_RETRIES = 2
+RISK_RATINGS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
 
 
 @dataclasses.dataclass
@@ -166,8 +167,12 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            technical_detail=technical_detail,
-            risk_rating=agent_report_vulnerability_mixin.RiskRating[vuln.risk.upper()],
+            technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
+            risk_rating=agent_report_vulnerability_mixin.RiskRating[
+                vuln.risk.upper()
+                if vuln.risk.upper() in RISK_RATINGS
+                else "POTENTIALLY"
+            ],
         )
 
 
