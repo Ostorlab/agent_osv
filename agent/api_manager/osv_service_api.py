@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 OSV_ENDPOINT = "https://api.osv.dev/v1/query"
 NUMBER_RETRIES = 3
 WAIT_BETWEEN_RETRIES = 2
+RISK_RATINGS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
 
 
 @dataclasses.dataclass
@@ -40,7 +41,7 @@ class VulnData:
     else None,
 )
 def query_osv_api(
-    package_name: str, version: str, ecosystem: str | None
+    package_name: str, version: str, ecosystem: str | None = None
 ) -> dict[str, Any] | None:
     """Query the OSV API with the specified version, package name, and ecosystem.
     Args:
@@ -156,7 +157,11 @@ def construct_vuln(
                 recommendation=recommendation,
             ),
             technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
-            risk_rating=agent_report_vulnerability_mixin.RiskRating[vuln.risk],
+            risk_rating=agent_report_vulnerability_mixin.RiskRating[
+                vuln.risk.upper()
+                if vuln.risk.upper() in RISK_RATINGS
+                else "POTENTIALLY"
+            ],
         )
 
 
