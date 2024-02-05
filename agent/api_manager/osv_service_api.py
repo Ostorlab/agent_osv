@@ -133,17 +133,33 @@ def construct_vuln(
         Vulnerability entry.
     """
     for vuln in parsed_vulns:
-        description = (
-            f"Dependency `{package_name}` with version `{vuln.fixed_version}`"
-            f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
-        )
-        recommendation = (
-            f"We recommend updating `{package_name}` to the latest available version."
-        )
+        if vuln.fixed_version != "":
+            recommendation = (
+                f"We recommend updating `{package_name}` to a version greater than or equal to "
+                f"`{vuln.fixed_version}`."
+            )
+        else:
+            recommendation = f"We recommend updating `{package_name}` to the latest available version."
+
+        if len(vuln.cves) == 0:
+            description = (
+                f"Dependency `{package_name}` with version `{package_version}`"
+                f"has a security issue."
+            )
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}"
+            technical_detail = f"```{vuln.description}```"
+        else:
+            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}: {', '.join(vuln.cves)}"
+            technical_detail = (
+                f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
+            )
+            description = (
+                f"Dependency `{package_name}` with version `{package_version}`"
+                f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
+            )
         yield osv_output_handler.Vulnerability(
             entry=kb.Entry(
-                title=f"Use of Outdated Vulnerable Component: "
-                f"{package_name}@{vuln.fixed_version}: {', '.join(vuln.cves)}",
+                title=title,
                 risk_rating=vuln.risk,
                 short_description=vuln.summary,
                 description=description,
@@ -156,7 +172,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            technical_detail=f"{vuln.description} \n#### CVEs:\n {', '.join(vuln.cves)}",
+            technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
                 if vuln.risk.upper() in RISK_RATINGS
@@ -171,7 +187,7 @@ def _get_fixed_version(
     fixed_version = ""
     if affected_data is not None:
         ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
-        if ranges_data is not None and len(ranges_data) > 0:
+        if len(ranges_data) > 0:
             events_data = ranges_data[0].get("events", [])
             if len(events_data) > 1:
                 fixed_version = events_data[1].get("fixed", "")

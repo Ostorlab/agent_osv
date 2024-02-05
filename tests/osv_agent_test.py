@@ -201,12 +201,12 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[6].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
@@ -231,12 +231,12 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "LOW"
     assert (
         agent_mock[6].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
@@ -261,10 +261,57 @@ def testAgentOSV_whenRiskMissing_defaultToPotentially(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.17.5: CVE-2018-3721"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[3].data["risk_rating"] == "POTENTIALLY"
+
+
+def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+) -> None:
+    """Ensure that the agent always emits a vulnerability with a valid technical detail."""
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "opencv",
+        "library_version": "6.0.0",
+        "library_type": "JAVASCRIPT_LIBRARY",
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) == 2
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0"
+    )
+    assert agent_mock[0].data["risk_rating"] == "LOW"
+    assert (
+        agent_mock[0].data["technical_detail"]
+        == """```Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n```"""
+    )
+    assert (
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
+    )
+    assert (
+        agent_mock[1].data["title"]
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
+    )
+    assert agent_mock[1].data["risk_rating"] == "CRITICAL"
+    assert (
+        agent_mock[1].data["technical_detail"]
+        == """```utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.``` 
+#### CVEs:
+ CVE-2019-10061"""
+    )
+    assert (
+        agent_mock[1].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
+    )
 
 
 def testAgentOSV_whenRiskInvalid_defaultToPotentially(
