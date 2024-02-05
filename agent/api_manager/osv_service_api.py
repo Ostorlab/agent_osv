@@ -133,9 +133,14 @@ def construct_vuln(
         Vulnerability entry.
     """
     for vuln in parsed_vulns:
-        recommendation = (
-            f"We recommend updating `{package_name}` to the latest available version."
-        )
+        if vuln.fixed_version != "":
+            recommendation = (
+                f"We recommend updating `{package_name}` to a version greater than or equal to "
+                f"`{vuln.fixed_version}`."
+            )
+        else:
+            recommendation = f"We recommend updating `{package_name}` to the latest available version."
+
         if len(vuln.cves) == 0:
             description = (
                 f"Dependency `{package_name}` with version `{package_version}`"
@@ -182,7 +187,7 @@ def _get_fixed_version(
     fixed_version = ""
     if affected_data is not None:
         ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
-        if ranges_data is not None and len(ranges_data) > 0:
+        if len(ranges_data) > 0:
             events_data = ranges_data[0].get("events", [])
             if len(events_data) > 1:
                 fixed_version = events_data[1].get("fixed", "")

@@ -294,6 +294,10 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
         == """```Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n```"""
     )
     assert (
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
+    )
+    assert (
         agent_mock[1].data["title"]
         == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
     )
@@ -303,6 +307,10 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
         == """```utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.``` 
 #### CVEs:
  CVE-2019-10061"""
+    )
+    assert (
+        agent_mock[1].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
 
 
