@@ -209,3 +209,16 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
         == "Use of Outdated Vulnerable Component: lodash@4.17.21: CVE-2021-23337"
     )
     assert agent_mock[6].data["risk_rating"] == "HIGH"
+
+
+def testAgentOSV_whenUnicodeDecodeError_shouldNotCrash(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    scan_message_js_file: message.Message,
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    caplog: Any,
+) -> None:
+    """Ensure that the agent does not crash when a UnicodeDecodeError is raised."""
+    test_agent.process(scan_message_js_file)
+
+    assert len(agent_mock) == 0

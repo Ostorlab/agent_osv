@@ -218,7 +218,7 @@ def _run_command(command: list[str] | str) -> str | None:
     """
     try:
         output = subprocess.run(command, capture_output=True, text=True, check=False)
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, UnicodeDecodeError) as e:
         logger.error(
             "An error occurred while running the command. Error message: %s", e
         )
