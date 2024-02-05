@@ -218,7 +218,7 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
     mocker: plugin.MockerFixture,
     osv_api_output_risk_lower: dict[str, Any],
 ) -> None:
-    """Ensure that the agent does not crash when the risk is lower."""
+    """Ensure that the agent does not crash when the risk is in lowercase."""
     mocker.patch(
         "agent.api_manager.osv_service_api.query_osv_api",
         return_value=osv_api_output_risk_lower,
