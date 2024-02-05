@@ -214,7 +214,7 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
 def testAgentOSV_whenUnicodeDecodeError_shouldNotCrash(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
-    scan_message_js_file: message.Message,
+    scan_message_file: message.Message,
     agent_persist_mock: dict[str | bytes, str | bytes],
     mocker: plugin.MockerFixture,
 ) -> None:
@@ -223,6 +223,6 @@ def testAgentOSV_whenUnicodeDecodeError_shouldNotCrash(
         "subprocess.run", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "")
     )
 
-    test_agent.process(scan_message_js_file)
+    test_agent.process(scan_message_file)
 
     assert len(agent_mock) == 0

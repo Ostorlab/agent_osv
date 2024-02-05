@@ -199,12 +199,3 @@ def osv_api_output() -> dict[str, Any]:
     data = pathlib.Path(file_path).read_text(encoding="utf-8")
     json_data: dict[str, Any] = json.loads(data)
     return json_data
-
-
-@pytest.fixture
-def scan_message_js_file() -> message.Message:
-    """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
-    selector = "v3.asset.file"
-    path = pathlib.Path(__file__).parent.parent / "tests/files/routesUtil.js"
-    msg_data = {"content": path.read_bytes(), "path": str(path)}
-    return message.Message.from_data(selector, data=msg_data)
