@@ -211,7 +211,7 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     assert agent_mock[6].data["risk_rating"] == "HIGH"
 
 
-def testAgentOSV_whenRiskLower_doesNotCrash(
+def testAgentOSV_whenRiskLowerCase_doesNotCrash(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
