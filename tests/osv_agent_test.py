@@ -289,3 +289,20 @@ def testAgentOSV_whenRiskInvalid_defaultToPotentially(
         agent_mock[i].data["risk_rating"] == "POTENTIALLY"
         for i in range(len(agent_mock))
     )
+
+
+def testAgentOSV_whenUnicodeDecodeError_shouldNotCrash(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    scan_message_file: message.Message,
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Ensure that the agent does not crash when a UnicodeDecodeError is raised."""
+    mocker.patch(
+        "subprocess.run", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "")
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
