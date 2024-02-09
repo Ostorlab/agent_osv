@@ -122,6 +122,8 @@ def parse_vulnerabilities(
         package_name: The package name.
         package_version: The package version.
         api_key: The NVD API key.
+        file_type: The package file type.
+        file_name: The package file name.
     Returns:
         Parsed output.
     """
@@ -219,15 +221,17 @@ def _extract_cve_reference_advisory(
 
 
 def _get_fixed_version(
-    affected_data: list[dict[str, Any]],
+    affected_data: list[dict[str, Any]] | None,
 ) -> str:
     fixed_version = ""
-    if affected_data is not None:
-        ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
-        if len(ranges_data) > 0:
-            events_data = ranges_data[0].get("events", [])
-            if len(events_data) > 1:
-                fixed_version = events_data[1].get("fixed", "")
+    if affected_data is None:
+        return fixed_version
+
+    ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
+    if len(ranges_data) > 0:
+        events_data = ranges_data[0].get("events", [])
+        if len(events_data) > 1:
+            fixed_version = events_data[1].get("fixed", "")
 
     return fixed_version
 
