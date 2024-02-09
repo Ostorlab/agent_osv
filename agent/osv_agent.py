@@ -133,10 +133,9 @@ class OSVAgent(
         elif message.selector.startswith("v3.fingerprint.file") is True:
             self._process_fingerprint_file(message)
 
-    def _emit_results(self, output: str) -> None:
-        """Parses results and emits vulnerabilities."""
-        parsed_output = osv_output_handler.parse_results(output, self.api_key)
-        for vuln in parsed_output:
+    def _emit_vulnerabilities(self, output: list[osv_output_handler.VulnData]) -> None:
+        vulnz = osv_output_handler.construct_vuln(output)
+        for vuln in vulnz:
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
@@ -153,7 +152,11 @@ class OSVAgent(
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
                 logger.info("Found valid name for file: %s", file_name)
-                self._emit_results(scan_results)
+                parsed_output = osv_output_handler.parse_osv_output(
+                    scan_results, self.api_key
+                )
+                if len(parsed_output) > 0:
+                    self._emit_vulnerabilities(output=parsed_output)
                 break
 
     def _process_fingerprint_file(self, message: m.Message) -> None:
@@ -177,21 +180,17 @@ class OSVAgent(
         if api_result is None:
             return None
 
-        parsed_osv_output = osv_service_api.parse_output(api_result, self.api_key)
+        parsed_osv_output = osv_output_handler.parse_vulnerabilities(
+            output=api_result,
+            package_name=package_name,
+            package_version=package_version,
+            api_key=self.api_key,
+        )
 
         if len(parsed_osv_output) == 0:
             return None
 
-        vulnz = osv_service_api.construct_vuln(
-            parsed_osv_output, package_name, package_version
-        )
-
-        for vuln in vulnz:
-            self.report_vulnerability(
-                entry=vuln.entry,
-                technical_detail=vuln.technical_detail,
-                risk_rating=vuln.risk_rating,
-            )
+        self._emit_vulnerabilities(output=parsed_osv_output)
 
 
 def _is_valid_osv_result(results: str | None) -> bool:

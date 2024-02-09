@@ -29,53 +29,42 @@ def testReadOutputFile_withInvalidFile_raiseJSONDecodeError(
 
 
 def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
-    parsed_data = osv_output_handler.parse_results(fake_osv_output)
+    parsed_data = osv_output_handler.parse_osv_output(fake_osv_output)
     parsed_data_list = list(parsed_data)
 
-    assert parsed_data_list[0].risk_rating.name == "HIGH"
+    assert parsed_data_list[0].risk == "HIGH"
+    assert len(parsed_data_list[0].references) == 7
+    assert parsed_data_list[0].cves == ["CVE-2022-1941"]
     assert (
-        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1941"
-        in parsed_data_list[0].technical_detail
+        "A message parsing and memory management vulnerability in ProtocolBuffer’s C++ and Python implementations can trigger an out of memory (OOM) failure when processing a specially crafted message"
+        in parsed_data_list[0].description
     )
+    assert parsed_data_list[0].fixed_version == "3.18.3"
+    assert parsed_data_list[0].package_version == "3.20.1"
+    assert parsed_data_list[0].package_name == "protobuf"
     assert (
-        "We recommend upgrading to versions 3.18.3, 3.19.5, 3.20.2, 3.21.6"
-        in parsed_data_list[0].technical_detail
-    )
-    assert len(parsed_data_list[0].entry.references) == 7
-    assert (
-        "https://nvd.nist.gov/vuln/detail/CVE-2022-1941"
-        in parsed_data_list[0].entry.references
-    )
-    assert (
-        "We recommend updating `protobuf` to the latest available version."
-        in parsed_data_list[0].entry.recommendation
+        parsed_data_list[0].summary
+        == "protobuf-cpp and protobuf-python have potential Denial of Service issue"
     )
 
 
 def testParseResults_withFileMissingCVE_returnData(
     fake_osv_output_missing_cve: str,
 ) -> None:
-    parsed_data = osv_output_handler.parse_results(fake_osv_output_missing_cve)
+    parsed_data = osv_output_handler.parse_osv_output(fake_osv_output_missing_cve)
     parsed_data_list = list(parsed_data)
 
-    assert len(parsed_data_list) == 2
-    assert parsed_data_list[0].risk_rating.name == "HIGH"
+    assert parsed_data_list[0].risk == "HIGH"
+    assert len(parsed_data_list[0].references) == 7
+    assert parsed_data_list[0].cves == ["CVE-2021-31402"]
     assert (
-        "Use of Outdated Vulnerable Component: dio@4.0.6: CVE-2021-31402"
-        in parsed_data_list[0].entry.title
+        "The dio package 4.0.0 for Dart allows CRLF injection if the attacker controls the HTTP method string, a different vulnerability than CVE-2020-35669."
+        in parsed_data_list[0].description
     )
-    assert "4.0.0" in parsed_data_list[0].technical_detail
-    assert len(parsed_data_list[0].entry.references) == 7
+    assert parsed_data_list[0].fixed_version == "5.0.0"
+    assert parsed_data_list[0].package_version == "4.0.6"
+    assert parsed_data_list[0].package_name == "dio"
     assert (
-        "https://nvd.nist.gov/vuln/detail/CVE-2021-31402"
-        in parsed_data_list[0].entry.references
+        parsed_data_list[0].summary
+        == "dio vulnerable to CRLF injection with HTTP method string"
     )
-    assert (
-        "We recommend updating `dio` to the latest available version."
-        in parsed_data_list[0].entry.recommendation
-    )
-    assert (
-        "Use of Outdated Vulnerable Component: dio@4.0.6: CVE-2021-31402"
-        in parsed_data_list[1].entry.title
-    )
-    assert "5.0.0" in parsed_data_list[1].technical_detail
