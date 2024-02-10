@@ -1,24 +1,17 @@
 """This module provides utility functions to query the OSV API for vulnerability information
 related to a specific package version."""
 import dataclasses
-import json
 import logging
-from typing import Iterator, Any
+from typing import Any
 
 import requests
 import tenacity
-from ostorlab.agent.kb import kb
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-
-from agent import cve_service_api
-from agent import osv_output_handler
 
 logger = logging.getLogger(__name__)
 
 OSV_ENDPOINT = "https://api.osv.dev/v1/query"
 NUMBER_RETRIES = 3
 WAIT_BETWEEN_RETRIES = 2
-RISK_RATINGS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
 
 
 @dataclasses.dataclass
@@ -69,134 +62,3 @@ def query_osv_api(
         return resp
 
     return None
-
-
-def parse_output(
-    api_response: dict[str, Any], api_key: str | None = None
-) -> list[VulnData]:
-    """Parse the OSV API response to extract vulnerabilities.
-    Args:
-        api_response: The API response json.
-        api_key: The API key.
-    Returns:
-        Parsed output.
-    """
-    try:
-        vulnerabilities = api_response.get("vulns", [])
-
-        parsed_vulns = []
-        for vulnerability in vulnerabilities:
-            risk = vulnerability.get("database_specific", {}).get("severity")
-            filtered_cves = [
-                alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
-            ]
-            if risk is None:
-                risk_ratings = []
-                for cve in filtered_cves:
-                    cve_data = cve_service_api.get_cve_data_from_api(cve, api_key)
-                    risk_ratings.append(cve_data.risk)
-                risk = osv_output_handler.calculate_risk_rating(risk_ratings)
-            elif risk == "MODERATE":
-                risk = "MEDIUM"
-
-            description = vulnerability.get("details", "")
-            summary = vulnerability.get("summary", "")
-            fixed_version = _get_fixed_version(vulnerability.get("affected"))
-            cvss_v3_vector = _get_cvss_v3_vector(vulnerability.get("severity"))
-            vuln = VulnData(
-                risk=risk,
-                description=description,
-                summary=summary,
-                fixed_version=fixed_version,
-                cvss_v3_vector=cvss_v3_vector,
-                references=vulnerability.get("references", {}),
-                cves=filtered_cves,
-            )
-            parsed_vulns.append(vuln)
-
-        return parsed_vulns
-
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON: {e}")
-        return []
-
-
-def construct_vuln(
-    parsed_vulns: list[VulnData], package_name: str, package_version: str
-) -> Iterator[osv_output_handler.Vulnerability]:
-    """Construct Vulneravilities from the parse output.
-    Args:
-        parsed_vulns: list of VulnData.
-        package_name: The package name.
-        package_version: The package version.
-    Yields:
-        Vulnerability entry.
-    """
-    for vuln in parsed_vulns:
-        if vuln.fixed_version != "":
-            recommendation = (
-                f"We recommend updating `{package_name}` to a version greater than or equal to "
-                f"`{vuln.fixed_version}`."
-            )
-        else:
-            recommendation = f"We recommend updating `{package_name}` to the latest available version."
-
-        if len(vuln.cves) == 0:
-            description = (
-                f"Dependency `{package_name}` with version `{package_version}`"
-                f"has a security issue."
-            )
-            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}"
-            technical_detail = f"```{vuln.description}```"
-        else:
-            title = f"Use of Outdated Vulnerable Component: {package_name}@{package_version}: {', '.join(vuln.cves)}"
-            technical_detail = (
-                f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
-            )
-            description = (
-                f"Dependency `{package_name}` with version `{package_version}`"
-                f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
-            )
-        yield osv_output_handler.Vulnerability(
-            entry=kb.Entry(
-                title=title,
-                risk_rating=vuln.risk,
-                short_description=vuln.summary,
-                description=description,
-                references=osv_output_handler.build_references(vuln.references),
-                security_issue=True,
-                privacy_issue=False,
-                has_public_exploit=False,
-                targeted_by_malware=False,
-                targeted_by_ransomware=False,
-                targeted_by_nation_state=False,
-                recommendation=recommendation,
-            ),
-            technical_detail=technical_detail,
-            risk_rating=agent_report_vulnerability_mixin.RiskRating[
-                vuln.risk.upper()
-                if vuln.risk.upper() in RISK_RATINGS
-                else "POTENTIALLY"
-            ],
-        )
-
-
-def _get_fixed_version(
-    affected_data: list[dict[str, Any]],
-) -> str:
-    fixed_version = ""
-    if affected_data is not None:
-        ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
-        if len(ranges_data) > 0:
-            events_data = ranges_data[0].get("events", [])
-            if len(events_data) > 1:
-                fixed_version = events_data[1].get("fixed", "")
-
-    return fixed_version
-
-
-def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:
-    if severity_data is not None and len(severity_data) > 0:
-        return severity_data[0].get("score", "")
-
-    return ""
