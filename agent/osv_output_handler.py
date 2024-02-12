@@ -3,8 +3,8 @@ import dataclasses
 import json
 import logging
 import pathlib
-from typing import Iterator, Any, List, Dict
 import re
+from typing import Iterator, Any, List, Dict
 
 import semver
 from ostorlab.agent.kb import kb
