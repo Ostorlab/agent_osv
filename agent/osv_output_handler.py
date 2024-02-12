@@ -3,10 +3,10 @@ import dataclasses
 import json
 import logging
 import pathlib
-from typing import Iterator, Any, Tuple, List, Dict
+from typing import Iterator, Any, List, Dict
 import re
 
-
+import semver
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 
@@ -97,7 +97,7 @@ def parse_osv_output(output: str, api_key: str | None = None) -> list[VulnData]:
         file_name = pathlib.Path(result.get("source", {}).get("path", "")).name
         for package in packages:
             parsed_vulns.extend(
-                parse_vulnerabilities(
+                parse_binary_vulnerabilities(
                     output=package,
                     api_key=api_key,
                     file_type=file_type,
@@ -108,19 +108,15 @@ def parse_osv_output(output: str, api_key: str | None = None) -> list[VulnData]:
     return parsed_vulns
 
 
-def parse_vulnerabilities(
+def parse_binary_vulnerabilities(
     output: dict[str, Any],
-    package_name: str | None = None,
-    package_version: str | None = None,
     api_key: str | None = None,
     file_type: str | None = None,
     file_name: str | None = None,
 ) -> list[VulnData]:
-    """Parse the OSV API response to extract vulnerabilities.
+    """Parse the OSV binary response to extract vulnerabilities.
     Args:
         output: The API response json.
-        package_name: The package name.
-        package_version: The package version.
         api_key: The NVD API key.
         file_type: The package file type.
         file_name: The package file name.
@@ -129,8 +125,8 @@ def parse_vulnerabilities(
     """
     try:
         vulnerabilities = output.get("vulns") or output.get("vulnerabilities") or []
-        package_name = output.get("package", {}).get("name") or package_name
-        package_version = output.get("package", {}).get("version") or package_version
+        package_name = output.get("package", {}).get("name")
+        package_version = output.get("package", {}).get("version")
         parsed_vulns = []
         for vulnerability in vulnerabilities:
             risk = vulnerability.get("database_specific", {}).get("severity")
@@ -146,7 +142,7 @@ def parse_vulnerabilities(
             elif risk == "MODERATE":
                 risk = "MEDIUM"
 
-            description = vulnerability.get("details", "")
+            description = _aggregate_cves(cve_ids=filtered_cves, api_key=api_key)
             summary = vulnerability.get("summary", "")
             fixed_version = _get_fixed_version(vulnerability.get("affected"))
             cvss_v3_vector = _get_cvss_v3_vector(vulnerability.get("severity"))
@@ -172,9 +168,79 @@ def parse_vulnerabilities(
         return []
 
 
-def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> Tuple[str, str]:
+def parse_api_vulnerabilities(
+    output: dict[str, Any],
+    package_name: str,
+    package_version: str,
+    api_key: str | None = None,
+) -> list[VulnData]:
+    """Parse the OSV API response to extract vulnerabilities.
+    Args:
+        output: The API response json.
+        package_name: The package name.
+        package_version: The package version.
+        api_key: The NVD API key.
+    Returns:
+        Parsed output.
+    """
+    cves_list: List[str] = []
+    risks_list: List[str] = []
+    vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
+    summary = ""
+    fixed_versions: list[str] = []
+    cvss_v3_vector = ""
+    references: List[dict[str, Any]] = []
+    description = ""
+    for vulnerability in vulnerabilities:
+        risk = vulnerability.get("database_specific", {}).get("severity")
+        fixed_version = _get_fixed_version(vulnerability.get("affected"))
+        if fixed_version != "":
+            fixed_versions.append(fixed_version)
+        filtered_cves = [
+            alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
+        ]
+        for cve in filtered_cves:
+            description += f"- [{cve}]({CVE_MITRE_URL}{cve}) "
+            description += f": {vulnerability.get('details')}\n"
+        if risk is None:
+            risk_ratings = [
+                cve_service_api.get_cve_data_from_api(cve, api_key).risk
+                for cve in filtered_cves
+            ]
+            risk = calculate_risk_rating(risk_ratings)
+        elif risk == "MODERATE":
+            risk = "MEDIUM"
+
+        summary = vulnerability.get("details", "")
+
+        cvss_v3_vector = _get_cvss_v3_vector(vulnerability.get("severity"))
+        cves_list.extend(filtered_cves)
+        risks_list.append(risk)
+        references.extend(vulnerability.get("references", {}))
+
+    try:
+        fixed_version = max(fixed_versions, key=semver.Version.parse)
+    except ValueError:
+        fixed_version = ""
+        logger.error("Can't get fixed version for %s package.", package_name)
+
+    return [
+        VulnData(
+            package_name=package_name,
+            package_version=package_version,
+            risk=calculate_risk_rating(risks_list),
+            description=description,
+            summary=summary,
+            fixed_version=fixed_version,
+            cvss_v3_vector=cvss_v3_vector,
+            references=references,
+            cves=cves_list,
+        )
+    ]
+
+
+def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> str:
     """Generate the description for the vulnerability from all the related CVEs."""
-    risk_ratings = []
     cve_list_details = ""
     for cve_id in cve_ids:
         cve_list_details += f"- [{cve_id}]({CVE_MITRE_URL}{cve_id}) "
@@ -185,9 +251,7 @@ def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> Tuple[str
             cve_list_details += (
                 f"The issue was fixed in version `{cve_data.fixed_version}`. \n "
             )
-        risk_ratings.append(cve_data.risk)
-    risk_rating = calculate_risk_rating(risk_ratings)
-    return risk_rating, cve_list_details
+    return cve_list_details
 
 
 def calculate_risk_rating(risk_ratings: list[str]) -> str:
@@ -197,10 +261,16 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     Returns:
         Risk rating of a vulnerability
     """
-    priority_levels = {"HIGH": 1, "MEDIUM": 2, "LOW": 3, "POTENTIALLY": 4}
+    priority_levels = {
+        "CRITICAL": 1,
+        "HIGH": 2,
+        "MEDIUM": 3,
+        "LOW": 4,
+        "POTENTIALLY": 5,
+    }
     risk_ratings = [risk_rating.upper() for risk_rating in risk_ratings]
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x, 4), reverse=False
+        risk_ratings, key=lambda x: priority_levels.get(x, 5), reverse=False
     )
 
     for rating in sorted_ratings:
