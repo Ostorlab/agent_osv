@@ -137,14 +137,11 @@ def parse_vulnerabilities_osv_binary(
         package_version = output.get("package", {}).get("version")
         parsed_vulns = []
         for vulnerability in vulnerabilities:
-            risk = vulnerability.get("database_specific", {}).get("severity")
             filtered_cves = [
                 alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
             ]
-            if risk is None:
-                risk = _vuln_risk_rating(cves=filtered_cves, api_key=api_key)
-            elif risk == "MODERATE":
-                risk = "MEDIUM"
+            severity = vulnerability.get("database_specific", {}).get("severity")
+            risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
 
             description = _aggregate_cves(cve_ids=filtered_cves, api_key=api_key)
             summary = vulnerability.get("summary", "")
@@ -195,7 +192,6 @@ def parse_vulnerabilities_osv_api(
     description = ""
     highest_risk_vuln_info: dict[str, str] = {}
     for vulnerability in vulnerabilities:
-        risk = vulnerability.get("database_specific", {}).get("severity")
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":
             fixed_versions.append(fixed_version)
@@ -205,12 +201,9 @@ def parse_vulnerabilities_osv_api(
         for cve in filtered_cves:
             description += f"- [{cve}]({CVE_MITRE_URL}{cve}) "
             description += f": {vulnerability.get('details')}\n"
-        if risk is None:
-            risk = _vuln_risk_rating(filtered_cves, api_key=api_key)
 
-        elif risk == "MODERATE":
-            risk = "MEDIUM"
-
+        severity = vulnerability.get("database_specific", {}).get("severity")
+        risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
         # Keep the summary and the cvss_v3_vector of the vulnerability with the highest risk rating
         old_risk = RISK_PRIORITY_LEVELS.get(
             highest_risk_vuln_info.get("risk", "POTENTIALLY").upper()
@@ -386,8 +379,16 @@ def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
         )
 
 
-def _vuln_risk_rating(cves: list[str], api_key: str | None = None) -> str:
-    risk_ratings = [
-        cve_service_api.get_cve_data_from_api(cve, api_key).risk for cve in cves
-    ]
-    return calculate_risk_rating(risk_ratings)
+def _vuln_risk_rating(
+    risk: str | None, cves: list[str], api_key: str | None = None
+) -> str:
+    if risk is None:
+        risk_ratings = [
+            cve_service_api.get_cve_data_from_api(cve, api_key).risk for cve in cves
+        ]
+        return calculate_risk_rating(risk_ratings)
+
+    elif risk == "MODERATE":
+        return "MEDIUM"
+    else:
+        return risk
