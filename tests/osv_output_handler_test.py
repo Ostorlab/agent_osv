@@ -39,7 +39,7 @@ def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData(
     osv_api_output: dict[str, Any],
 ) -> None:
     """Parse the output of osv api call."""
-    cves_data = osv_output_handler.parse_api_vulnerabilities(
+    cves_data = osv_output_handler.parse_vulnerabilities_osv_api(
         osv_api_output, package_name="lodash", package_version="4.10.0"
     )
 

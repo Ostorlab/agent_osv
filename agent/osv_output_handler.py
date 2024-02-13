@@ -23,6 +23,14 @@ CVE_PATTERN = r".*/(CVE-[0-9]+-[0-9]+)"
 
 RISK_RATINGS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "POTENTIALLY"]
 
+RISK_PRIORITY_LEVELS = {
+    "CRITICAL": 1,
+    "HIGH": 2,
+    "MEDIUM": 3,
+    "LOW": 4,
+    "POTENTIALLY": 5,
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +105,7 @@ def parse_osv_output(output: str, api_key: str | None = None) -> list[VulnData]:
         file_name = pathlib.Path(result.get("source", {}).get("path", "")).name
         for package in packages:
             parsed_vulns.extend(
-                parse_binary_vulnerabilities(
+                parse_vulnerabilities_osv_binary(
                     output=package,
                     api_key=api_key,
                     file_type=file_type,
@@ -108,7 +116,7 @@ def parse_osv_output(output: str, api_key: str | None = None) -> list[VulnData]:
     return parsed_vulns
 
 
-def parse_binary_vulnerabilities(
+def parse_vulnerabilities_osv_binary(
     output: dict[str, Any],
     api_key: str | None = None,
     file_type: str | None = None,
@@ -134,11 +142,7 @@ def parse_binary_vulnerabilities(
                 alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
             ]
             if risk is None:
-                risk_ratings = []
-                for cve in filtered_cves:
-                    cve_data = cve_service_api.get_cve_data_from_api(cve, api_key)
-                    risk_ratings.append(cve_data.risk)
-                risk = calculate_risk_rating(risk_ratings)
+                risk = _vuln_risk_rating(cves=filtered_cves, api_key=api_key)
             elif risk == "MODERATE":
                 risk = "MEDIUM"
 
@@ -168,7 +172,7 @@ def parse_binary_vulnerabilities(
         return []
 
 
-def parse_api_vulnerabilities(
+def parse_vulnerabilities_osv_api(
     output: dict[str, Any],
     package_name: str,
     package_version: str,
@@ -186,11 +190,10 @@ def parse_api_vulnerabilities(
     cves_list: List[str] = []
     risks_list: List[str] = []
     vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
-    summary = ""
     fixed_versions: list[str] = []
-    cvss_v3_vector = ""
     references: List[dict[str, Any]] = []
     description = ""
+    highest_risk_vuln_info: dict[str, str] = {}
     for vulnerability in vulnerabilities:
         risk = vulnerability.get("database_specific", {}).get("severity")
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
@@ -203,17 +206,23 @@ def parse_api_vulnerabilities(
             description += f"- [{cve}]({CVE_MITRE_URL}{cve}) "
             description += f": {vulnerability.get('details')}\n"
         if risk is None:
-            risk_ratings = [
-                cve_service_api.get_cve_data_from_api(cve, api_key).risk
-                for cve in filtered_cves
-            ]
-            risk = calculate_risk_rating(risk_ratings)
+            risk = _vuln_risk_rating(filtered_cves, api_key=api_key)
+
         elif risk == "MODERATE":
             risk = "MEDIUM"
 
-        summary = vulnerability.get("details", "")
+        # Keep the summary and the cvss_v3_vector of the vulnerability with the highest risk rating
+        old_risk = RISK_PRIORITY_LEVELS.get(
+            highest_risk_vuln_info.get("risk", "POTENTIALLY").upper()
+        )
+        new_risk = RISK_PRIORITY_LEVELS.get(risk.upper())
+        if old_risk is not None and new_risk is not None and old_risk > new_risk:
+            highest_risk_vuln_info["risk"] = risk
+            highest_risk_vuln_info["cvss_v3_vector"] = _get_cvss_v3_vector(
+                vulnerability.get("severity")
+            )
+            highest_risk_vuln_info["summary"] = vulnerability.get("summary", "")
 
-        cvss_v3_vector = _get_cvss_v3_vector(vulnerability.get("severity"))
         cves_list.extend(filtered_cves)
         risks_list.append(risk)
         references.extend(vulnerability.get("references", {}))
@@ -230,9 +239,9 @@ def parse_api_vulnerabilities(
             package_version=package_version,
             risk=calculate_risk_rating(risks_list),
             description=description,
-            summary=summary,
+            summary=highest_risk_vuln_info.get("summary", ""),
             fixed_version=fixed_version,
-            cvss_v3_vector=cvss_v3_vector,
+            cvss_v3_vector=highest_risk_vuln_info.get("cvss_v3_vector"),
             references=references,
             cves=cves_list,
         )
@@ -261,20 +270,13 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
     Returns:
         Risk rating of a vulnerability
     """
-    priority_levels = {
-        "CRITICAL": 1,
-        "HIGH": 2,
-        "MEDIUM": 3,
-        "LOW": 4,
-        "POTENTIALLY": 5,
-    }
     risk_ratings = [risk_rating.upper() for risk_rating in risk_ratings]
     sorted_ratings = sorted(
-        risk_ratings, key=lambda x: priority_levels.get(x, 5), reverse=False
+        risk_ratings, key=lambda x: RISK_PRIORITY_LEVELS.get(x, 5), reverse=False
     )
 
     for rating in sorted_ratings:
-        if rating in priority_levels:
+        if rating in RISK_PRIORITY_LEVELS:
             return rating
     return "POTENTIALLY"
 
@@ -382,3 +384,10 @@ def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
                 else "POTENTIALLY"
             ],
         )
+
+
+def _vuln_risk_rating(cves: list[str], api_key: str | None = None) -> str:
+    risk_ratings = [
+        cve_service_api.get_cve_data_from_api(cve, api_key).risk for cve in cves
+    ]
+    return calculate_risk_rating(risk_ratings)

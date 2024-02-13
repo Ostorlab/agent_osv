@@ -244,10 +244,7 @@ Update to version 4.17.5 or later.
 
 The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects."""
     ) in agent_mock[0].data["technical_detail"]
-    assert (
-        agent_mock[0].data["short_description"]
-        == "`lodash` versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
-    )
+    assert agent_mock[0].data["short_description"] == "Prototype Pollution in lodash"
     assert agent_mock[0].data["description"] == (
         """Dependency `lodash` with version `4.7.11`has a security issue.
 The issue is identified by CVEs: `CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337`."""
