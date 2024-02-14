@@ -230,7 +230,7 @@ def parse_vulnerabilities_osv_api(
         VulnData(
             package_name=package_name,
             package_version=package_version,
-            risk=calculate_risk_rating(risks_list),
+            risk=highest_risk_vuln_info.get("risk", "POTENTIALLY"),
             description=description,
             summary=highest_risk_vuln_info.get("summary", ""),
             fixed_version=fixed_version,
