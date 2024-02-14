@@ -180,7 +180,7 @@ class OSVAgent(
         if api_result is None:
             return None
 
-        parsed_osv_output = osv_output_handler.parse_vulnerabilities(
+        parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
             output=api_result,
             package_name=package_name,
             package_version=package_version,
