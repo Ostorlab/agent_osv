@@ -4,7 +4,7 @@ import json
 import logging
 import pathlib
 import re
-from typing import Iterator, Any, List, Dict
+from typing import Any, Dict, Iterator, List
 
 import semver
 from ostorlab.agent.kb import kb
