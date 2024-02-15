@@ -39,19 +39,17 @@ def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData(
     osv_api_output: dict[str, Any],
 ) -> None:
     """Parse the output of osv api call."""
-    cves_data = osv_output_handler.parse_vulnerabilities(osv_api_output)
-
-    assert len(cves_data) == 7
-    assert cves_data[0].risk == "LOW"
-    assert cves_data[0].fixed_version == "4.17.5"
-    assert (
-        "Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. "
-        in cves_data[0].description
+    cves_data = osv_output_handler.parse_vulnerabilities_osv_api(
+        osv_api_output, package_name="lodash", package_version="4.10.0"
     )
-    assert cves_data[1].risk == "HIGH"
-    assert cves_data[1].fixed_version == "4.17.11"
-    assert cves_data[6].risk == "HIGH"
+
+    assert len(cves_data) == 1
+    assert cves_data[0].risk == "CRITICAL"
+    assert cves_data[0].fixed_version == "4.17.21"
     assert (
-        cves_data[6].description
-        == "`lodash` versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
+        """- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
+
+The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `__proto__` causing the addition or modification of an existing property that will exist on all objects.
+"""
+        in cves_data[0].description
     )
