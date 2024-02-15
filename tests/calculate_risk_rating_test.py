@@ -19,6 +19,7 @@ from agent import osv_output_handler
         (["high"], "HIGH"),
         (["x"], "POTENTIALLY"),
         (["x", "high"], "HIGH"),
+        (["MEDIUM", "HIGH", "CRITICAL"], "CRITICAL"),
     ],
 )
 def testCalculateRiskRating_whenCveRiskRating_returnRiskRating(
