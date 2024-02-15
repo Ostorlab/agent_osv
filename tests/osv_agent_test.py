@@ -358,3 +358,19 @@ def testAgentOSV_whenUnicodeDecodeError_shouldNotCrash(
     test_agent.process(scan_message_file)
 
     assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    osv_api_output_risk_invalid: dict[str, Any],
+) -> None:
+    """Ensure that the agent does not detect vulnerabilities if the api returns no findings."""
+    selector = "v3.fingerprint.file.library"
+    msg_data = {"library_name": "jquery", "library_version": "3.6.0"}
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) == 0

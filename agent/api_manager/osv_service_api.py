@@ -57,8 +57,9 @@ def query_osv_api(
 
     response = requests.post(OSV_ENDPOINT, json=data)
 
-    if response.status_code == 200:
-        resp: dict[str, Any] = response.json()
-        return resp
-
-    return None
+    if response.status_code != 200:
+        return None
+    resp: dict[str, Any] = response.json()
+    if resp == {}:
+        return None
+    return resp

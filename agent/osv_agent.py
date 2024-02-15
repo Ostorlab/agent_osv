@@ -186,6 +186,8 @@ class OSVAgent(
             package_version=package_version,
             api_key=self.api_key,
         )
+        if parsed_osv_output is None:
+            return None
 
         if len(parsed_osv_output) == 0:
             return None
