@@ -191,6 +191,8 @@ def parse_vulnerabilities_osv_api(
     references: List[dict[str, Any]] = []
     description = ""
     highest_risk_vuln_info: dict[str, str] = {}
+    if len(vulnerabilities) == 0:
+        return []
     for vulnerability in vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":
@@ -225,20 +227,22 @@ def parse_vulnerabilities_osv_api(
     except ValueError:
         fixed_version = ""
         logger.error("Can't get fixed version for %s package.", package_name)
-
-    return [
-        VulnData(
-            package_name=package_name,
-            package_version=package_version,
-            risk=highest_risk_vuln_info.get("risk", "POTENTIALLY"),
-            description=description,
-            summary=highest_risk_vuln_info.get("summary", ""),
-            fixed_version=fixed_version,
-            cvss_v3_vector=highest_risk_vuln_info.get("cvss_v3_vector"),
-            references=references,
-            cves=cves_list,
-        )
-    ]
+    if len(vulnerabilities) > 0:
+        return [
+            VulnData(
+                package_name=package_name,
+                package_version=package_version,
+                risk=highest_risk_vuln_info.get("risk", "POTENTIALLY"),
+                description=description,
+                summary=highest_risk_vuln_info.get("summary", ""),
+                fixed_version=fixed_version,
+                cvss_v3_vector=highest_risk_vuln_info.get("cvss_v3_vector"),
+                references=references,
+                cves=cves_list,
+            )
+        ]
+    else:
+        return []
 
 
 def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> str:
