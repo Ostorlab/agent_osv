@@ -364,7 +364,6 @@ def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
-    osv_api_output_risk_invalid: dict[str, Any],
 ) -> None:
     """Ensure that the agent does not detect vulnerabilities if the api returns no findings."""
     selector = "v3.fingerprint.file.library"
