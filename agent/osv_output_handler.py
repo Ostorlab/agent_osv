@@ -191,6 +191,8 @@ def parse_vulnerabilities_osv_api(
     references: List[dict[str, Any]] = []
     description = ""
     highest_risk_vuln_info: dict[str, str] = {}
+    if len(vulnerabilities) == 0:
+        return []
     for vulnerability in vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":

@@ -177,7 +177,7 @@ class OSVAgent(
             version=package_version,
             ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
         )
-        if api_result is None:
+        if api_result is None or api_result == {}:
             return None
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
@@ -186,6 +186,9 @@ class OSVAgent(
             package_version=package_version,
             api_key=self.api_key,
         )
+
+        if parsed_osv_output is None:
+            return None
 
         if len(parsed_osv_output) == 0:
             return None
