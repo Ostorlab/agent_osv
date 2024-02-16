@@ -342,9 +342,8 @@ def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
             technical_detail = f"```{vuln.description}```"
         else:
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves)}"
-            technical_detail = (
-                f"```{vuln.description}``` \n#### CVEs:\n {', '.join(vuln.cves)}"
-            )
+
+            technical_detail = f"{vuln.description}"
 
             if vuln.file_type is not None and vuln.file_name is not None:
                 description = (
