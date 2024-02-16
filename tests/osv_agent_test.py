@@ -230,7 +230,7 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
-        """```- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
+        """- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
 
 The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `__proto__` causing the addition or modification of an existing property that will exist on all objects.
 """
@@ -275,7 +275,7 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
-        """```- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
+        """- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
 
 The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `__proto__` causing the addition or modification of an existing property that will exist on all objects.
 
@@ -308,10 +308,8 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         agent_mock[0].data["technical_detail"]
-        == """```- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.
-``` 
-#### CVEs:
- CVE-2019-10061"""
+        == """- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.
+"""
     )
     assert (
         agent_mock[0].data["recommendation"]
