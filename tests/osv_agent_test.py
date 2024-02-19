@@ -246,7 +246,7 @@ The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allo
     ) in agent_mock[0].data["technical_detail"]
     assert agent_mock[0].data["short_description"] == "Prototype Pollution in lodash"
     assert agent_mock[0].data["description"] == (
-        """Dependency `lodash` with version `4.7.11`has a security issue.
+        """Dependency `lodash` with version `4.7.11` has a security issue.
 The issue is identified by CVEs: `CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337`."""
     )
 
@@ -371,3 +371,42 @@ def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
     test_agent.process(msg)
 
     assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+) -> None:
+    """Ensure that the agent does not detect vulnerabilities if the api returns no findings."""
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "opencv",
+        "library_version": "3.4.0",
+        "path": "`lib/arm64-v8a/libBlinkID.so`",
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061"
+    )
+    assert agent_mock[0].data["risk_rating"] == "CRITICAL"
+    assert agent_mock[0].data["technical_detail"] == (
+        """Dependency `opencv` Found in `lib/arm64-v8a/libBlinkID.so` has a security issue: 
+- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.
+"""
+    )
+
+    assert agent_mock[0].data["description"] == (
+        """Dependency `opencv` with version `3.4.0` has a security issue.
+The issue is identified by CVEs: `CVE-2019-10061`."""
+    )
+
+    assert (
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
+    )

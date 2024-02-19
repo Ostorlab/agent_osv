@@ -133,8 +133,10 @@ class OSVAgent(
         elif message.selector.startswith("v3.fingerprint.file") is True:
             self._process_fingerprint_file(message)
 
-    def _emit_vulnerabilities(self, output: list[osv_output_handler.VulnData]) -> None:
-        vulnz = osv_output_handler.construct_vuln(output)
+    def _emit_vulnerabilities(
+        self, output: list[osv_output_handler.VulnData], path: str | None = None
+    ) -> None:
+        vulnz = osv_output_handler.construct_vuln(output, path)
         for vuln in vulnz:
             self.report_vulnerability(
                 entry=vuln.entry,
@@ -164,6 +166,7 @@ class OSVAgent(
         package_name = message.data.get("library_name")
         package_version = message.data.get("library_version")
         package_type = message.data.get("library_type")
+        path = message.data.get("path")
 
         if package_version is None:
             logger.error("Error: Version must not be None.")
@@ -193,7 +196,7 @@ class OSVAgent(
         if len(parsed_osv_output) == 0:
             return None
 
-        self._emit_vulnerabilities(output=parsed_osv_output)
+        self._emit_vulnerabilities(output=parsed_osv_output, path=path)
 
 
 def _is_valid_osv_result(results: str | None) -> bool:
