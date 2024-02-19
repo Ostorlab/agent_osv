@@ -310,10 +310,13 @@ def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:
     return ""
 
 
-def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
-    """Construct Vulneravilities from the parse output.
+def construct_vuln(
+    parsed_vulns: list[VulnData], path: str | None = None
+) -> Iterator[Vulnerability]:
+    """Construct Vulnerabilities from the parse output.
     Args:
         parsed_vulns: list of VulnData.
+        path: path of the dependency.
     Yields:
         Vulnerability entry.
     """
@@ -336,14 +339,20 @@ def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
             else:
                 description = (
                     f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f"has a security issue."
+                    f" has a security issue."
                 )
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}"
-            technical_detail = f"```{vuln.description}```"
+            technical_detail = ""
+            if path is not None:
+                technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
+            technical_detail += f"```{vuln.description}```"
         else:
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves)}"
 
-            technical_detail = f"{vuln.description}"
+            technical_detail = ""
+            if path is not None:
+                technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
+            technical_detail += f"{vuln.description}"
 
             if vuln.file_type is not None and vuln.file_name is not None:
                 description = (
@@ -354,7 +363,7 @@ def construct_vuln(parsed_vulns: list[VulnData]) -> Iterator[Vulnerability]:
             else:
                 description = (
                     f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
+                    f" has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
                 )
         yield Vulnerability(
             entry=kb.Entry(
