@@ -1,4 +1,5 @@
 """OSV agent implementation"""
+
 import json
 import logging
 import pathlib
@@ -141,6 +142,7 @@ class OSVAgent(
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
+                dna=vuln.dna,
                 risk_rating=vuln.risk_rating,
             )
 

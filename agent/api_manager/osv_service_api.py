@@ -1,5 +1,6 @@
 """This module provides utility functions to query the OSV API for vulnerability information
 related to a specific package version."""
+
 import dataclasses
 import logging
 from typing import Any

@@ -1,4 +1,5 @@
 """Unittests for calculating risk rating."""
+
 import pytest
 
 from agent import osv_output_handler
