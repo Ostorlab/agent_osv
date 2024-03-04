@@ -1,4 +1,5 @@
 """Unittests for OSV agent."""
+
 import subprocess
 from typing import Callable, Any
 
@@ -48,6 +49,10 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     assert (
         agent_mock[0].data["title"]
         == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 
@@ -204,6 +209,10 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
         == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+    )
 
 
 def testAgentOSV_whenRiskLowerCase_doesNotCrash(
@@ -228,6 +237,11 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
         agent_mock[0].data["title"]
         == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
     )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+    )
+
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         """- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
@@ -273,6 +287,10 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
         agent_mock[0].data["title"]
         == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
     )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+    )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         """- [CVE-2018-3721](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-3721) : Versions of `lodash` before 4.17.5 are vulnerable to prototype pollution. 
@@ -304,6 +322,10 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     assert (
         agent_mock[0].data["title"]
         == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
@@ -393,6 +415,10 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     assert (
         agent_mock[0].data["title"]
         == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: opencv@3.4.0"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert agent_mock[0].data["technical_detail"] == (

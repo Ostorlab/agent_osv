@@ -1,4 +1,5 @@
 """Pytest fixture for the osv agent."""
+
 import json
 import pathlib
 import random

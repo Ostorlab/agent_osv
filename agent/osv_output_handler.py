@@ -1,4 +1,5 @@
 """OSV Wrapper responsible for dealing with the agent output and constructing its information."""
+
 import dataclasses
 import json
 import logging
@@ -39,6 +40,7 @@ class Vulnerability:
     """Vulnerability dataclass to pass to the emit method."""
 
     entry: kb.Entry
+    dna: str
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
@@ -380,6 +382,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
+            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}_{vuln.package_version}",
             technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
