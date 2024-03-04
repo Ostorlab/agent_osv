@@ -382,7 +382,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}_{vuln.package_version}",
+            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}",
             technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
