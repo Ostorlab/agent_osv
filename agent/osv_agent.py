@@ -36,13 +36,19 @@ SUPPORTED_OSV_FILE_NAMES = [
     "requirements.txt",
     "yarn.lock",
 ]
+
 OSV_ECOSYSTEM_MAPPING = {
     "JAVASCRIPT_LIBRARY": "npm",
     "JAVA_LIBRARY": "Maven",
     "FLUTTER_FRAMEWORK": "Pub",
-    "CORDOVA_LIBRARY": "npm",
+    "CORDOVA_FRAMEWORK": "npm",
     "DOTNET_FRAMEWORK": "NuGet",
     "IOS_FRAMEWORK": "SwiftURL",
+}
+
+OSV_WHITELISTED_ECOSYSTEM = {
+    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
+    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
 }
 
 logging.basicConfig(
@@ -182,6 +188,7 @@ class OSVAgent(
             version=package_version,
             ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
         )
+
         if api_result is None or api_result == {}:
             return None
 
@@ -190,6 +197,7 @@ class OSVAgent(
             package_name=package_name,
             package_version=package_version,
             api_key=self.api_key,
+            whitelisted_ecosystems=OSV_WHITELISTED_ECOSYSTEM.get(str(package_type)),
         )
 
         if parsed_osv_output is None:

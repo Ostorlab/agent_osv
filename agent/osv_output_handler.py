@@ -167,7 +167,7 @@ def parse_vulnerabilities_osv_binary(
         return parsed_vulns
 
     except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON: {e}")
+        logger.error("Error decoding JSON: %s", e)
         return []
 
 
@@ -176,6 +176,7 @@ def parse_vulnerabilities_osv_api(
     package_name: str,
     package_version: str,
     api_key: str | None = None,
+    whitelisted_ecosystems: list[str] | None = None,
 ) -> list[VulnData]:
     """Parse the OSV API response to extract vulnerabilities.
     Args:
@@ -195,16 +196,24 @@ def parse_vulnerabilities_osv_api(
     highest_risk_vuln_info: dict[str, str] = {}
     if len(vulnerabilities) == 0:
         return []
-    for vulnerability in vulnerabilities:
+
+    whitlisted_vulnerabilities = _whitelist_vulnz_from_ecosystems(
+        vulnerabilities, whitelisted_ecosystems
+    )
+    for vulnerability in whitlisted_vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":
             fixed_versions.append(fixed_version)
         filtered_cves = [
             alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
         ]
-        for cve in filtered_cves:
-            description += f"- [{cve}]({CVE_MITRE_URL}{cve}) "
-            description += f": {vulnerability.get('details')}\n"
+
+        if len(filtered_cves) > 0:
+            for cve in filtered_cves:
+                description += f"- [{cve}]({CVE_MITRE_URL}{cve}) : "
+        else:
+            description += f"- {vulnerability.get('id')} : "
+        description += f"{vulnerability.get('details')}\n\n"
 
         severity = vulnerability.get("database_specific", {}).get("severity")
         risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
@@ -243,6 +252,23 @@ def parse_vulnerabilities_osv_api(
             cves=cves_list,
         )
     ]
+
+
+def _whitelist_vulnz_from_ecosystems(
+    vulnerabilities: list[dict[str, Any]],
+    whitelisted_ecosystems: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    if whitelisted_ecosystems is None or len(whitelisted_ecosystems) == 0:
+        return vulnerabilities
+    whitelisted = []
+    for vuln in vulnerabilities:
+        affected_data = vuln.get("affected", [])
+        ecosystem = None
+        if len(affected_data) > 0:
+            ecosystem = affected_data[0].get("package", {}).get("ecosystem")
+        if ecosystem in whitelisted_ecosystems:
+            whitelisted.append(vuln)
+    return whitelisted
 
 
 def _aggregate_cves(cve_ids: list[str], api_key: str | None = None) -> str:

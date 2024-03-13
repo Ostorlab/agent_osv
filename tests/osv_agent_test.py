@@ -436,3 +436,39 @@ The issue is identified by CVEs: `CVE-2019-10061`."""
         agent_mock[0].data["recommendation"]
         == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
+
+
+def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    elf_library_fingerprint_msg: message.Message,
+) -> None:
+    """For fingerprints of elf or macho files, we do not know the corresponding osv ecosystem.
+    We use a list of accepted ecosystems.
+    This unit test ensures no vulnz of excluded ecosystems are reported.
+    """
+    test_agent.process(elf_library_fingerprint_msg)
+
+    assert len(agent_mock) == 1
+
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
+    )
+    assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
+    assert agent_mock[0].data["technical_detail"] == (
+        """```OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=47190\n\n```\nCrash type: Incorrect-function-pointer-type\nCrash state:\ncv::split\ncv::split\nTestSplitAndMerge\n```\n\nOSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=59450\n\n```\nCrash type: Heap-buffer-overflow READ 4\nCrash state:\nopj_jp2_apply_pclr\nopj_jp2_decode\ncv::detail::Jpeg2KOpjDecoderBase::readData\n```\n\n```"""
+    )
+    assert agent_mock[0].data["description"] == (
+        """Dependency `opencv` with version `4.9.0` has a security issue."""
+    )
+
+    assert (
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to the latest available version."
+    )
