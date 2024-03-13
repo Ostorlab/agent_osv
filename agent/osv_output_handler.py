@@ -32,11 +32,6 @@ RISK_PRIORITY_LEVELS = {
     "POTENTIALLY": 5,
 }
 
-OSV_WHITELISTED_ECOSYSTEM = {
-    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
-    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
-}
-
 
 logger = logging.getLogger(__name__)
 
@@ -178,15 +173,16 @@ def parse_vulnerabilities_osv_binary(
 
 
 def parse_vulnerabilities_osv_api(
-    vulnerabilities: list[dict[str, Any]],
+    output: dict[str, Any],
     package_name: str,
     package_version: str,
     api_key: str | None = None,
+    whitelisted_ecosystems: list[str] | None = None,
 ) -> list[VulnData]:
     """Parse the OSV API response to extract vulnerabilities.
 
     Args:
-        vulnerabilities: The list of vulnerabilities raw from the API response .
+        output: The list of vulnerabilities raw from the API response .
         package_name: The package name.
         package_version: The package version.
         api_key: The NVD API key.
@@ -196,6 +192,7 @@ def parse_vulnerabilities_osv_api(
     """
     cves_list: List[str] = []
     risks_list: List[str] = []
+    vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
     fixed_versions: list[str] = []
     references: List[dict[str, Any]] = []
     description = ""
@@ -203,7 +200,10 @@ def parse_vulnerabilities_osv_api(
     if len(vulnerabilities) == 0:
         return []
 
-    for vulnerability in vulnerabilities:
+    whitlisted_vulnerabilities = _whitelist_vulnz_from_ecosystems(
+        vulnerabilities, whitelisted_ecosystems
+    )
+    for vulnerability in whitlisted_vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":
             fixed_versions.append(fixed_version)
