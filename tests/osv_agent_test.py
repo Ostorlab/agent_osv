@@ -329,9 +329,12 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
-        agent_mock[0].data["technical_detail"]
-        == """- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.
-"""
+        """- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.\n"""
+        in agent_mock[0].data["technical_detail"]
+    )
+    assert (
+        """- GHSA-f698-m2v9-5fh3 : Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n\n"""
+        in agent_mock[0].data["technical_detail"]
     )
     assert (
         agent_mock[0].data["recommendation"]
@@ -423,6 +426,7 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert agent_mock[0].data["technical_detail"] == (
         """Dependency `opencv` Found in `lib/arm64-v8a/libBlinkID.so` has a security issue: 
+- GHSA-f698-m2v9-5fh3 : Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n
 - [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.
 """
     )
@@ -462,7 +466,7 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[0].data["technical_detail"] == (
-        """```OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=47190\n\n```\nCrash type: Incorrect-function-pointer-type\nCrash state:\ncv::split\ncv::split\nTestSplitAndMerge\n```\n\nOSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=59450\n\n```\nCrash type: Heap-buffer-overflow READ 4\nCrash state:\nopj_jp2_apply_pclr\nopj_jp2_decode\ncv::detail::Jpeg2KOpjDecoderBase::readData\n```\n\n```"""
+        """```- OSV-2022-394 : OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=47190\n\n```\nCrash type: Incorrect-function-pointer-type\nCrash state:\ncv::split\ncv::split\nTestSplitAndMerge\n```\n\n- OSV-2023-444 : OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=59450\n\n```\nCrash type: Heap-buffer-overflow READ 4\nCrash state:\nopj_jp2_apply_pclr\nopj_jp2_decode\ncv::detail::Jpeg2KOpjDecoderBase::readData\n```\n\n```"""
     )
     assert agent_mock[0].data["description"] == (
         """Dependency `opencv` with version `4.9.0` has a security issue."""

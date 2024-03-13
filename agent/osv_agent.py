@@ -46,10 +46,6 @@ OSV_ECOSYSTEM_MAPPING = {
     "IOS_FRAMEWORK": "SwiftURL",
 }
 
-OSV_WHITELISTED_ECOSYSTEM = {
-    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
-    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
-}
 
 logging.basicConfig(
     format="%(message)s",
@@ -177,10 +173,9 @@ class OSVAgent(
         path = message.data.get("path")
 
         if package_version is None:
-            logger.error("Error: Version must not be None.")
             return None
         if package_name is None:
-            logger.error("Error: Package name must not be None.")
+            logger.warning("Error: Package name must not be None.")
             return None
 
         api_result = osv_service_api.query_osv_api(
@@ -197,7 +192,7 @@ class OSVAgent(
             package_name=package_name,
             package_version=package_version,
             api_key=self.api_key,
-            whitelisted_ecosystems=OSV_WHITELISTED_ECOSYSTEM.get(str(package_type)),
+            package_type=package_type,
         )
 
         if parsed_osv_output is None:

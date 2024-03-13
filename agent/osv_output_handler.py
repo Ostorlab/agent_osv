@@ -32,6 +32,12 @@ RISK_PRIORITY_LEVELS = {
     "POTENTIALLY": 5,
 }
 
+OSV_WHITELISTED_ECOSYSTEM = {
+    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
+    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
+}
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -176,7 +182,7 @@ def parse_vulnerabilities_osv_api(
     package_name: str,
     package_version: str,
     api_key: str | None = None,
-    whitelisted_ecosystems: list[str] | None = None,
+    package_type: str | None = None,
 ) -> list[VulnData]:
     """Parse the OSV API response to extract vulnerabilities.
     Args:
@@ -198,7 +204,7 @@ def parse_vulnerabilities_osv_api(
         return []
 
     whitlisted_vulnerabilities = _whitelist_vulnz_from_ecosystems(
-        vulnerabilities, whitelisted_ecosystems
+        vulnerabilities, OSV_WHITELISTED_ECOSYSTEM.get(package_type)
     )
     for vulnerability in whitlisted_vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
@@ -213,7 +219,7 @@ def parse_vulnerabilities_osv_api(
                 description += f"- [{cve}]({CVE_MITRE_URL}{cve}) : "
         else:
             description += f"- {vulnerability.get('id')} : "
-        description += f"{vulnerability.get('details')}\n\n"
+        description += f"{vulnerability.get('details')}\n"
 
         severity = vulnerability.get("database_specific", {}).get("severity")
         risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
@@ -225,7 +231,7 @@ def parse_vulnerabilities_osv_api(
         if old_risk is not None and new_risk is not None and old_risk > new_risk:
             highest_risk_vuln_info["risk"] = risk
             highest_risk_vuln_info["cvss_v3_vector"] = _get_cvss_v3_vector(
-                vulnerability.get("severity")
+                vulnerability.get("severity", [])
             )
             highest_risk_vuln_info["summary"] = vulnerability.get("summary", "")
 
