@@ -186,7 +186,7 @@ def parse_vulnerabilities_osv_api(
     """Parse the OSV API response to extract vulnerabilities.
 
     Args:
-        output: The list of vulnerabilities raw from the API response .
+        vulnerabilities: The list of vulnerabilities raw from the API response .
         package_name: The package name.
         package_version: The package version.
         api_key: The NVD API key.

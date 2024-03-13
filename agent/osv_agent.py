@@ -183,19 +183,33 @@ class OSVAgent(
         all_vulnerabilities = []
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type))
         if ecosystems is not None and len(ecosystems) > 0:
+            for ecosystem in ecosystems:
+                api_result = osv_service_api.query_osv_api(
+                    package_name=package_name,
+                    version=package_version,
+                    ecosystem=ecosystem,
+                )
+
+                if api_result is None or api_result == {}:
+                    continue
+
+                vulnerabilities = api_result.get("vulns", []) or api_result.get(
+                    "vulnerabilities", []
+                )
+                all_vulnerabilities.extend(vulnerabilities)
+        else:
             api_result = osv_service_api.query_osv_api(
                 package_name=package_name,
                 version=package_version,
-                ecosystems=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
+                ecosystem=None,
             )
-
-            if api_result is None or api_result == {}:
-                return None
-
-            vulnerabilities = api_result.get("vulns", []) or api_result.get(
+            api_result = api_result or {}
+            all_vulnerabilities = api_result.get("vulns", []) or api_result.get(
                 "vulnerabilities", []
             )
-            all_vulnerabilities.extend(vulnerabilities)
+
+        if len(all_vulnerabilities) == 0:
+            return None
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
             vulnerabilities=all_vulnerabilities,
