@@ -203,10 +203,11 @@ def parse_vulnerabilities_osv_api(
     if len(vulnerabilities) == 0:
         return []
 
-    whitlisted_vulnerabilities = _whitelist_vulnz_from_ecosystems(
-        vulnerabilities, OSV_WHITELISTED_ECOSYSTEM.get(package_type)
-    )
-    for vulnerability in whitlisted_vulnerabilities:
+    if package_type is not None:
+        vulnerabilities = _whitelist_vulnz_from_ecosystems(
+            vulnerabilities, OSV_WHITELISTED_ECOSYSTEM.get(package_type)
+        )
+    for vulnerability in vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":
             fixed_versions.append(fixed_version)
