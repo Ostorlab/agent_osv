@@ -178,24 +178,24 @@ def parse_vulnerabilities_osv_binary(
 
 
 def parse_vulnerabilities_osv_api(
-    output: dict[str, Any],
+    vulnerabilities: list[dict[str, Any]],
     package_name: str,
     package_version: str,
     api_key: str | None = None,
-    package_type: str | None = None,
 ) -> list[VulnData]:
     """Parse the OSV API response to extract vulnerabilities.
+
     Args:
-        output: The API response json.
+        output: The list of vulnerabilities raw from the API response .
         package_name: The package name.
         package_version: The package version.
         api_key: The NVD API key.
+
     Returns:
         Parsed output.
     """
     cves_list: List[str] = []
     risks_list: List[str] = []
-    vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
     fixed_versions: list[str] = []
     references: List[dict[str, Any]] = []
     description = ""
@@ -203,10 +203,6 @@ def parse_vulnerabilities_osv_api(
     if len(vulnerabilities) == 0:
         return []
 
-    if package_type is not None:
-        vulnerabilities = _whitelist_vulnz_from_ecosystems(
-            vulnerabilities, OSV_WHITELISTED_ECOSYSTEM.get(package_type)
-        )
     for vulnerability in vulnerabilities:
         fixed_version = _get_fixed_version(vulnerability.get("affected"))
         if fixed_version != "":

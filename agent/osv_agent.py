@@ -38,12 +38,14 @@ SUPPORTED_OSV_FILE_NAMES = [
 ]
 
 OSV_ECOSYSTEM_MAPPING = {
-    "JAVASCRIPT_LIBRARY": "npm",
-    "JAVA_LIBRARY": "Maven",
-    "FLUTTER_FRAMEWORK": "Pub",
-    "CORDOVA_FRAMEWORK": "npm",
-    "DOTNET_FRAMEWORK": "NuGet",
-    "IOS_FRAMEWORK": "SwiftURL",
+    "JAVASCRIPT_LIBRARY": ["npm"],
+    "JAVA_LIBRARY": ["Maven"],
+    "FLUTTER_FRAMEWORK": ["Pub"],
+    "CORDOVA_FRAMEWORK": ["npm"],
+    "DOTNET_FRAMEWORK": ["NuGet"],
+    "IOS_FRAMEWORK": ["SwiftURL"],
+    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
+    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
 }
 
 
@@ -178,21 +180,28 @@ class OSVAgent(
             logger.warning("Error: Package name must not be None.")
             return None
 
-        api_result = osv_service_api.query_osv_api(
-            package_name=package_name,
-            version=package_version,
-            ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
-        )
+        all_vulnerabilities = []
+        ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type))
+        if ecosystems is not None and len(ecosystems) > 0:
+            api_result = osv_service_api.query_osv_api(
+                package_name=package_name,
+                version=package_version,
+                ecosystems=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
+            )
 
-        if api_result is None or api_result == {}:
-            return None
+            if api_result is None or api_result == {}:
+                return None
+
+            vulnerabilities = api_result.get("vulns", []) or api_result.get(
+                "vulnerabilities", []
+            )
+            all_vulnerabilities.extend(vulnerabilities)
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
-            output=api_result,
+            vulnerabilities=all_vulnerabilities,
             package_name=package_name,
             package_version=package_version,
             api_key=self.api_key,
-            package_type=package_type,
         )
 
         if parsed_osv_output is None:
