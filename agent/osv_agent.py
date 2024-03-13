@@ -182,8 +182,10 @@ class OSVAgent(
 
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type))
         whitelisted_ecosystems = None
-        if isinstance(ecosystems, list):
-            ecosystem = None
+        ecosystem = None
+        if isinstance(ecosystems, str):
+            ecosystem = ecosystems
+        elif isinstance(ecosystems, list):
             whitelisted_ecosystems = typing.cast(list[str], ecosystems)
 
         api_result = osv_service_api.query_osv_api(

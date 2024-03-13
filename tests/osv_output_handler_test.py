@@ -40,7 +40,7 @@ def testPasrseOSVOutput_withValidResponse_returnListOfVulnzData(
 ) -> None:
     """Parse the output of osv api call."""
     cves_data = osv_output_handler.parse_vulnerabilities_osv_api(
-        osv_api_output.get("vulns", []), package_name="lodash", package_version="4.10.0"
+        osv_api_output, package_name="lodash", package_version="4.10.0"
     )
 
     assert len(cves_data) == 1
