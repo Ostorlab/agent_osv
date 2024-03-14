@@ -241,7 +241,6 @@ def parse_vulnerabilities_osv_api(
     except ValueError:
         fixed_version = ""
         logger.error("Can't get fixed version for %s package.", package_name)
-
     return [
         VulnData(
             package_name=package_name,
@@ -376,7 +375,7 @@ def construct_vuln(
             technical_detail = ""
             if path is not None:
                 technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
-            technical_detail += f"```{vuln.description}```"
+            technical_detail += f"```\n{vuln.description}\n```"
         else:
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves)}"
 
