@@ -38,12 +38,12 @@ SUPPORTED_OSV_FILE_NAMES = [
 ]
 
 OSV_ECOSYSTEM_MAPPING = {
-    "JAVASCRIPT_LIBRARY": "npm",
-    "JAVA_LIBRARY": "Maven",
-    "FLUTTER_FRAMEWORK": "Pub",
-    "CORDOVA_FRAMEWORK": "npm",
-    "DOTNET_FRAMEWORK": "NuGet",
-    "IOS_FRAMEWORK": "SwiftURL",
+    "JAVASCRIPT_LIBRARY": ["npm"],
+    "JAVA_LIBRARY": ["Maven"],
+    "FLUTTER_FRAMEWORK": ["Pub"],
+    "CORDOVA_FRAMEWORK": ["npm"],
+    "DOTNET_FRAMEWORK": ["NuGet"],
+    "IOS_FRAMEWORK": ["SwiftURL"],
     "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
     "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
 }
@@ -180,12 +180,12 @@ class OSVAgent(
             logger.warning("Error: Package name must not be None.")
             return None
 
-        ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type))
+        ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
         whitelisted_ecosystems = None
         ecosystem = None
-        if isinstance(ecosystems, str):
-            ecosystem = ecosystems
-        elif isinstance(ecosystems, list):
+        if len(ecosystems) == 1:
+            ecosystem = ecosystems[0]
+        elif len(ecosystems) > 1:
             whitelisted_ecosystems = typing.cast(list[str], ecosystems)
 
         api_result = osv_service_api.query_osv_api(
