@@ -186,7 +186,7 @@ class OSVAgent(
         if len(ecosystems) == 1:
             ecosystem = ecosystems[0]
         elif len(ecosystems) > 1:
-            whitelisted_ecosystems = typing.cast(list[str], ecosystems)
+            whitelisted_ecosystems = ecosystems
 
         api_result = osv_service_api.query_osv_api(
             package_name=package_name,
