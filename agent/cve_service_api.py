@@ -5,6 +5,9 @@ import json
 
 import requests
 import tenacity
+from tenacity import stop
+from tenacity import wait
+
 
 CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId="
 REQUEST_TIMEOUT = 60
@@ -24,9 +27,9 @@ default_cve = CVE(
 
 
 @tenacity.retry(
-    stop=tenacity.stop_after_attempt(10),
+    stop=stop.stop_after_attempt(10),
     # wait for 30 seconds before retrying
-    wait=tenacity.wait_fixed(30),
+    wait=wait.wait_fixed(30),
     retry=tenacity.retry_if_exception_type(
         (requests.ConnectionError, requests.HTTPError, json.JSONDecodeError)
     ),

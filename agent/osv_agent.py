@@ -36,14 +36,18 @@ SUPPORTED_OSV_FILE_NAMES = [
     "requirements.txt",
     "yarn.lock",
 ]
+
 OSV_ECOSYSTEM_MAPPING = {
-    "JAVASCRIPT_LIBRARY": "npm",
-    "JAVA_LIBRARY": "Maven",
-    "FLUTTER_FRAMEWORK": "Pub",
-    "CORDOVA_LIBRARY": "npm",
-    "DOTNET_FRAMEWORK": "NuGet",
-    "IOS_FRAMEWORK": "SwiftURL",
+    "JAVASCRIPT_LIBRARY": ["npm"],
+    "JAVA_LIBRARY": ["Maven"],
+    "FLUTTER_FRAMEWORK": ["Pub"],
+    "CORDOVA_FRAMEWORK": ["npm"],
+    "DOTNET_FRAMEWORK": ["NuGet"],
+    "IOS_FRAMEWORK": ["SwiftURL"],
+    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
+    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
 }
+
 
 logging.basicConfig(
     format="%(message)s",
@@ -171,17 +175,25 @@ class OSVAgent(
         path = message.data.get("path")
 
         if package_version is None:
-            logger.error("Error: Version must not be None.")
             return None
         if package_name is None:
-            logger.error("Error: Package name must not be None.")
+            logger.warning("Error: Package name must not be None.")
             return None
+
+        ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
+        whitelisted_ecosystems = None
+        ecosystem = None
+        if len(ecosystems) == 1:
+            ecosystem = ecosystems[0]
+        elif len(ecosystems) > 1:
+            whitelisted_ecosystems = ecosystems
 
         api_result = osv_service_api.query_osv_api(
             package_name=package_name,
             version=package_version,
-            ecosystem=OSV_ECOSYSTEM_MAPPING.get(str(package_type)),
+            ecosystem=ecosystem,
         )
+
         if api_result is None or api_result == {}:
             return None
 
@@ -190,8 +202,8 @@ class OSVAgent(
             package_name=package_name,
             package_version=package_version,
             api_key=self.api_key,
+            whitelisted_ecosystems=whitelisted_ecosystems,
         )
-
         if parsed_osv_output is None:
             return None
 
