@@ -44,8 +44,8 @@ OSV_ECOSYSTEM_MAPPING = {
     "CORDOVA_FRAMEWORK": ["npm"],
     "DOTNET_FRAMEWORK": ["NuGet"],
     "IOS_FRAMEWORK": ["SwiftURL"],
-    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux"],
-    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "SwiftURL"],
+    "ELF_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "Bitnami"],
+    "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "Bitnami", "SwiftURL"],
 }
 
 

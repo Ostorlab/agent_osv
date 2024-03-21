@@ -190,11 +190,11 @@ def parse_vulnerabilities_osv_api(
     Returns:
         Parsed output.
     """
-    cves_list: List[str] = []
-    risks_list: List[str] = []
+    cves_list: list[str] = []
+    risks_list: list[str] = []
     vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
     fixed_versions: list[str] = []
-    references: List[dict[str, Any]] = []
+    references: list[dict[str, Any]] = []
     description = ""
     highest_risk_vuln_info: dict[str, str] = {}
     if len(vulnerabilities) == 0:

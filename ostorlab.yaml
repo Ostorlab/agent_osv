@@ -1,6 +1,6 @@
 kind: Agent
 name: osv
-version: 0.5.2
+version: 0.5.3
 description: |
   This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for the [OSV Scanner](https://github.com/google/osv-scanner).
 license: Apache-2.0
