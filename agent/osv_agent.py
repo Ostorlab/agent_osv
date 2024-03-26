@@ -74,7 +74,6 @@ FILE_TYPE_BLACKLIST = (
     ".woff",
     ".woff2",
     ".zip",
-    ".xml",
 )
 
 logging.basicConfig(
@@ -148,6 +147,7 @@ def _get_file_type(content: bytes, path: str | None) -> str:
         return str(file_type)
     else:
         file_split = os.path.splitext(path)[1]
+        # Check the result hase the base name and the file extension
         if len(file_split) < 2:
             return _get_file_type(content, None)
         return file_split
@@ -198,7 +198,7 @@ class OSVAgent(
             logger.warning("Message file content is empty.")
             return
         file_type = _get_file_type(content, path)
-        logger.info("Analyzing file `%s` with type `%s`.", path, file_type)
+        logger.debug("Analyzing file `%s` with type `%s`.", path, file_type)
 
         if file_type in FILE_TYPE_BLACKLIST:
             logger.debug("File type is blacklisted.")
@@ -206,7 +206,9 @@ class OSVAgent(
         for file_name in SUPPORTED_OSV_FILE_NAMES:
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
-                logger.info("Found valid name for file: %s", file_name)
+                logger.info(
+                    "Found valid name for file: %s in path: %s", file_name, path
+                )
                 parsed_output = osv_output_handler.parse_osv_output(
                     scan_results, self.api_key
                 )

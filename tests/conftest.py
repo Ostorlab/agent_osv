@@ -13,6 +13,10 @@ from ostorlab.runtimes import definitions as runtime_definitions
 
 from agent import osv_agent
 
+SVG_CONTENT = b"""<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+  <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
+</svg>"""
+
 
 @pytest.fixture
 def scan_message_file() -> message.Message:
@@ -54,6 +58,14 @@ def blacklisted_scan_message_file() -> message.Message:
     """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
     msg_data = {"content": b"2132154645645", "path": "test.dex"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def blacklisted_scan_message_content() -> message.Message:
+    """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {"content": SVG_CONTENT, "path": ""}
     return message.Message.from_data(selector, data=msg_data)
 
 
