@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from pytest_mock import plugin
 
 from agent import osv_output_handler
 
@@ -52,7 +53,20 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
 
 def testParseResults_withFileMissingCVE_returnData(
     fake_osv_output_missing_cve: str,
+    mocker: plugin.MockerFixture,
 ) -> None:
+    class MockCveData:
+        risk = "CRITICAL"
+        description = "The dio package 4.0.0 for Dart allows CRLF injection if the attacker controls the HTTP method string, a different vulnerability than CVE-2020-35669."
+        fixed_version = "5.0.0"
+
+        def __init__(self, cve_id: str, api_key: str | None = None):
+            del cve_id
+            del api_key
+            pass
+
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", side_effect=MockCveData)
+
     parsed_data = osv_output_handler.parse_osv_output(fake_osv_output_missing_cve)
     parsed_data_list = list(parsed_data)
 
