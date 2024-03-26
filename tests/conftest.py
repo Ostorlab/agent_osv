@@ -1,4 +1,5 @@
 """Pytest fixture for the osv agent."""
+
 import json
 import pathlib
 import random
@@ -45,6 +46,14 @@ def invalid_scan_message_file() -> message.Message:
     """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
     msg_data = {"content": b"", "path": "test.java"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def blacklisted_scan_message_file() -> message.Message:
+    """Creates an invalid message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    msg_data = {"content": b"2132154645645", "path": "test.dex"}
     return message.Message.from_data(selector, data=msg_data)
 
 

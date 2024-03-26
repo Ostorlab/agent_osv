@@ -1,4 +1,5 @@
 """module responsible for retrieving the risk rating of a vulnerability"""
+
 import dataclasses
 import json
 

@@ -1,4 +1,5 @@
 """Unittests for OSV wrapper."""
+
 import json
 
 import pytest

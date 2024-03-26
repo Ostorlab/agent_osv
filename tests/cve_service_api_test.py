@@ -1,4 +1,5 @@
 """Unittests for CVE service api."""
+
 import re
 
 import requests_mock as rq_mock

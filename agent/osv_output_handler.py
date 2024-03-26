@@ -1,4 +1,5 @@
 """OSV Wrapper responsible for dealing with the agent output and constructing its information."""
+
 import dataclasses
 import json
 import logging
@@ -132,6 +133,7 @@ def parse_vulnerabilities(
         package_name = output.get("package", {}).get("name") or package_name
         package_version = output.get("package", {}).get("version") or package_version
         parsed_vulns = []
+
         for vulnerability in vulnerabilities:
             risk = vulnerability.get("database_specific", {}).get("severity")
             filtered_cves = [
