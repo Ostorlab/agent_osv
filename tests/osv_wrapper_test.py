@@ -37,7 +37,8 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
     assert len(parsed_data_list[0].references) == 7
     assert parsed_data_list[0].cves == ["CVE-2022-1941"]
     assert (
-        "A message parsing and memory management vulnerability in ProtocolBuffer’s C++ and Python implementations can trigger an out of memory (OOM) failure when processing a specially crafted message"
+        """- [CVE-2022-1941](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1941) : A parsing vulnerability for the MessageSet type in the ProtocolBuffers versions prior to and including 3.16.1, 3.17.3, 3.18.2, 3.19.4, 3.20.1 and 3.21.5 for protobuf-cpp, and versions prior to and including 3.16.1, 3.17.3, 3.18.2, 3.19.4, 3.20.1 and 4.21.5 for protobuf-python can lead to out of memory failures. A specially crafted message with multiple key-value per elements creates parsing issues, and can lead to a Denial of Service against services receiving unsanitized input. We recommend upgrading to versions 3.18.3, 3.19.5, 3.20.2, 3.21.6 for protobuf-cpp and 3.18.3, 3.19.5, 3.20.2, 4.21.6 for protobuf-python. Versions for 3.16 and 3.17 are no longer updated.The issue was fixed in version `4.21.6`. 
+ """
         in parsed_data_list[0].description
     )
     assert parsed_data_list[0].fixed_version == "3.18.3"

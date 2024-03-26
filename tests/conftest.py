@@ -235,3 +235,14 @@ def osv_api_output_risk_invalid() -> dict[str, Any]:
     data = pathlib.Path(file_path).read_text(encoding="utf-8")
     json_data: dict[str, Any] = json.loads(data)
     return json_data
+
+
+@pytest.fixture
+def elf_library_fingerprint_msg() -> message.Message:
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "opencv",
+        "library_version": "4.9.0",
+        "library_type": "ELF_LIBRARY",
+    }
+    return message.Message.from_data(selector, data=msg_data)
