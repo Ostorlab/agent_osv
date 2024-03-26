@@ -5,8 +5,11 @@ import logging
 import pathlib
 import subprocess
 import typing
+import os
+import mimetypes
 
 import requests
+import magic
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message as m
@@ -48,6 +51,30 @@ OSV_ECOSYSTEM_MAPPING = {
     "MACHO_LIBRARY": ["OSS-Fuzz", "Alpine", "Debian", "Linux", "Bitnami", "SwiftURL"],
 }
 
+FILE_TYPE_BLACKLIST = (
+    ".car",
+    ".dex",
+    ".dylib",
+    ".eot",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mobileprovision",
+    ".nib",
+    ".pdf",
+    ".plist",
+    ".png",
+    ".psd",
+    ".so",
+    ".strings",
+    ".svg",
+    ".symbols",
+    ".ttf",
+    ".woff",
+    ".woff2",
+    ".zip",
+)
 
 logging.basicConfig(
     format="%(message)s",
@@ -113,6 +140,19 @@ def _run_osv(path: str, content: bytes) -> str | None:
     return None
 
 
+def _get_file_type(content: bytes, path: str | None) -> str:
+    if path is None:
+        mime = magic.from_buffer(content, mime=True)
+        file_type = mimetypes.guess_extension(mime)
+        return str(file_type)
+    else:
+        file_split = os.path.splitext(path)[1]
+        # Check the result hase the base name and the file extension
+        if len(file_split) < 2:
+            return _get_file_type(content, None)
+        return file_split
+
+
 class OSVAgent(
     agent.Agent,
     agent_report_vulnerability_mixin.AgentReportVulnMixin,
@@ -153,13 +193,22 @@ class OSVAgent(
     def _process_asset_file(self, message: m.Message) -> None:
         """Process message of type v3.asset.file."""
         content = _get_content(message)
+        path = message.data.get("path")
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
+            return
+        file_type = _get_file_type(content, path)
+        logger.debug("Analyzing file `%s` with type `%s`.", path, file_type)
+
+        if file_type in FILE_TYPE_BLACKLIST:
+            logger.debug("File type is blacklisted.")
             return
         for file_name in SUPPORTED_OSV_FILE_NAMES:
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
-                logger.info("Found valid name for file: %s", file_name)
+                logger.info(
+                    "Found valid name for file: %s in path: %s", file_name, path
+                )
                 parsed_output = osv_output_handler.parse_osv_output(
                     scan_results, self.api_key
                 )

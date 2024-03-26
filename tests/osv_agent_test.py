@@ -134,6 +134,44 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
     assert len(agent_mock) == 0
 
 
+def testAgentOSV_whenAnalysisRunsWithBlackListedFile_notProcessMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    blacklisted_scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
+
+    test_agent.process(blacklisted_scan_message_file)
+
+    assert subprocess_mock.call_count == 0
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenAnalysisRunsWithBlackListedContent_notProcessMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    blacklisted_scan_message_content: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
+
+    test_agent.process(blacklisted_scan_message_content)
+
+    assert subprocess_mock.call_count == 0
+    assert len(agent_mock) == 0
+
+
 def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
@@ -277,6 +315,17 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
         "agent.api_manager.osv_service_api.query_osv_api",
         return_value=osv_api_output_risk_missing,
     )
+
+    class MockCveData:
+        risk = "CRITICAL"
+
+        def __init__(self, cve_id: str, api_key: str | None = None):
+            del cve_id
+            del api_key
+            pass
+
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", side_effect=MockCveData)
+
     selector = "v3.fingerprint.file.library"
     msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
     msg = message.Message.from_data(selector, data=msg_data)

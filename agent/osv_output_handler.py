@@ -139,6 +139,7 @@ def parse_vulnerabilities_osv_binary(
         package_name = output.get("package", {}).get("name")
         package_version = output.get("package", {}).get("version")
         parsed_vulns = []
+
         for vulnerability in vulnerabilities:
             filtered_cves = [
                 alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
