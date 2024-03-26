@@ -210,8 +210,11 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     """Unit test for the full life cycle of the agent:
     case where the osv scan a package.
     """
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api", return_value=osv_api_output
+    )
     selector = "v3.fingerprint.file.library"
-    msg_data = {"library_name": "sqlite", "library_version": "3.9.0"}
+    msg_data = {"library_name": "lodash", "library_version": "4.7.11"}
     msg = message.Message.from_data(selector, data=msg_data)
 
     test_agent.process(msg)
