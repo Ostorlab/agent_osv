@@ -32,6 +32,7 @@ RISK_PRIORITY_LEVELS = {
     "POTENTIALLY": 5,
 }
 
+MAX_SHOWN_CVES = 10
 
 logger = logging.getLogger(__name__)
 
@@ -378,8 +379,8 @@ def construct_vuln(
                 technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
             technical_detail += f"```\n{vuln.description}\n```"
         else:
-            vuln.cves.sort()
-            title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves)}"
+            vuln.cves.sort(reverse=True)
+            title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}"
 
             technical_detail = ""
             if path is not None:
@@ -412,7 +413,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves)}",
+            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}",
             technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
