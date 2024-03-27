@@ -52,7 +52,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 
@@ -244,12 +244,12 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
 
 
@@ -273,11 +273,11 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
 
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
@@ -299,7 +299,7 @@ The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allo
     assert agent_mock[0].data["short_description"] == "Prototype Pollution in lodash"
     assert agent_mock[0].data["description"] == (
         """Dependency `lodash` with version `4.7.11` has a security issue.
-The issue is identified by CVEs: `CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337`."""
+The issue is identified by CVEs: `CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337`."""
     )
 
 
@@ -334,11 +334,11 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
 
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-3721, CVE-2018-16487, CVE-2019-1010266, CVE-2019-10744, CVE-2020-8203, CVE-2020-28500, CVE-2021-23337"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2018-16487, CVE-2018-3721, CVE-2019-1010266, CVE-2019-10744, CVE-2020-28500, CVE-2020-8203, CVE-2021-23337"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
@@ -374,7 +374,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@6.0.0"
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
@@ -470,7 +470,7 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@3.4.0"
+        == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert agent_mock[0].data["technical_detail"] == (
@@ -511,7 +511,7 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0:"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[0].data["technical_detail"] == (
