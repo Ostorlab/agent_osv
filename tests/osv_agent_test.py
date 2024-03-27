@@ -249,7 +249,7 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337, CVE-2020-8203, CVE-2020-28500, CVE-2019-10744, CVE-2019-1010266, CVE-2018-3721, CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
     )
 
 
@@ -277,7 +277,7 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337, CVE-2020-8203, CVE-2020-28500, CVE-2019-10744, CVE-2019-1010266, CVE-2018-3721, CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
     )
 
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
@@ -338,7 +338,7 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337, CVE-2020-8203, CVE-2020-28500, CVE-2019-10744, CVE-2019-1010266, CVE-2018-3721, CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
