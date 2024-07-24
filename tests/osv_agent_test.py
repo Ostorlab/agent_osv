@@ -57,6 +57,52 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 
 
+def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_link: message.Message,
+    mocker: plugin.MockerFixture,
+    osv_output_as_dict: dict[str, str],
+    fake_osv_output: str,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the osv analysis runs with a link and without errors and yields vulnerabilities.
+    """
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+
+    subprocess_mock = mocker.patch(
+        "agent.osv_agent._run_command", return_value=fake_osv_output
+    )
+    mocker.patch(
+        "agent.osv_output_handler.read_output_file_as_dict",
+        return_value=osv_output_as_dict,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+
+    test_agent.process(scan_message_link)
+
+    assert "/usr/local/bin/osv-scanner --format json --lockfile" in " ".join(
+        subprocess_mock.call_args.args[0]
+    )
+    assert len(agent_mock) > 0
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
+    )
+    assert agent_mock[0].data["risk_rating"] == "HIGH"
+
+
 def testAgentOSV_whenAnalysisRunsWithBadFile_noCrash(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],

@@ -7,6 +7,8 @@ import subprocess
 import typing
 import os
 import mimetypes
+import hotpatch
+from urllib import parse
 
 import requests
 import magic
@@ -34,10 +36,12 @@ SUPPORTED_OSV_FILE_NAMES = [
     "packages.lock.json",
     "pnpm-lock.yaml",
     "poetry.lock",
-    "pom.xml",
+    "pdm.lock" "pom.xml",
     "pubspec.lock",
     "requirements.txt",
+    "renv.lock",
     "yarn.lock",
+    "verification-metadata.xml",
 ]
 
 OSV_ECOSYSTEM_MAPPING = {
@@ -86,6 +90,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _get_content_url(message: m.Message) -> bytes | None:
+    url = message.data.get("url")
+    if url is None:
+        return None
+    parsed_url = parse.urlparse(url)
+    filename = os.path.basename(parsed_url.path)
+    if filename.lower() in [
+        support_lock.lower() for support_lock in SUPPORTED_OSV_FILE_NAMES
+    ]:
+        logger.debug("Found matching path %s", url)
+        response = requests.get(url, timeout=60)
+        logger.debug("Collected response %s", response.text)
+        return response.text.encode()
+    return None
+
+
 def _get_content(message: m.Message) -> bytes | None:
     """Get the content of the file from the message.
     Args:
@@ -100,6 +120,21 @@ def _get_content(message: m.Message) -> bytes | None:
     content_url = message.data.get("content_url")
     if content_url is not None:
         return requests.get(content_url, timeout=60).content
+    content_url = _get_content_url(message)
+    if content_url is not None:
+        return content_url
+    return None
+
+
+def _get_path(message: m.Message) -> str | None:
+    path = message.data.get("path")
+    if path is not None:
+        return path
+    url = message.data.get("url")
+    if url is not None:
+        parsed_url = parse.urlparse(url)
+        filename = os.path.basename(parsed_url.path)
+        return filename
     return None
 
 
@@ -130,11 +165,14 @@ def _run_osv(path: str, content: bytes) -> str | None:
         path: The file path.
         content: Scanned file content
     """
-    decoded_content = content.decode("utf-8", errors="ignore")
-    file_name = pathlib.Path(path)
+    patched_path, patched_content = hotpatch.hotpatch(path, content)
+    decoded_content = patched_content.decode("utf-8", errors="ignore")
+    file_name = pathlib.Path(patched_path)
     file_name.write_text(decoded_content, encoding="utf-8")
     for command in _construct_commands(file_name.name):
+        logger.debug("Running command %s", command)
         output = _run_command(command)
+        logger.debug("Output: %s", output)
         if output is not None:
             return output
     return None
@@ -172,8 +210,8 @@ class OSVAgent(
         Once the scan is completed, it emits messages of type : `v3.report.vulnerability`
         """
         logger.info("processing message of selector : %s", message.selector)
-        if message.selector.startswith("v3.asset.file") is True:
-            self._process_asset_file(message)
+        if message.selector.startswith("v3.asset") is True:
+            self._process_asset(message)
 
         elif message.selector.startswith("v3.fingerprint.file") is True:
             self._process_fingerprint_file(message)
@@ -190,10 +228,10 @@ class OSVAgent(
                 risk_rating=vuln.risk_rating,
             )
 
-    def _process_asset_file(self, message: m.Message) -> None:
+    def _process_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file."""
         content = _get_content(message)
-        path = message.data.get("path")
+        path = _get_path(message)
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return
@@ -214,7 +252,6 @@ class OSVAgent(
                 )
                 if len(parsed_output) > 0:
                     self._emit_vulnerabilities(output=parsed_output)
-                break
 
     def _process_fingerprint_file(self, message: m.Message) -> None:
         """Process message of type v3.fingerprint.file."""
