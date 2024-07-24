@@ -128,7 +128,7 @@ def _get_content(message: m.Message) -> bytes | None:
 
 
 def _get_path(message: m.Message) -> str | None:
-    path = message.data.get("path")
+    path: str | None = message.data.get("path")
     if path is not None:
         return path
     url: str | None = message.data.get("url")
