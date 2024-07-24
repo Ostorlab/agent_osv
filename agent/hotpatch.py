@@ -3,7 +3,7 @@
 import re
 
 
-def hotpatch(path: str, content: bytes):
+def hotpatch(path: str, content: bytes) -> tuple[str, bytes]:
     """Fix content to address known issues in OSV.
 
     Args:

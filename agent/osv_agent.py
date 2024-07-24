@@ -131,7 +131,7 @@ def _get_path(message: m.Message) -> str | None:
     path = message.data.get("path")
     if path is not None:
         return path
-    url = message.data.get("url")
+    url: str | None = message.data.get("url")
     if url is not None:
         parsed_url = parse.urlparse(url)
         filename = os.path.basename(parsed_url.path)
