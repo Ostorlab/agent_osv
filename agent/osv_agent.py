@@ -7,7 +7,7 @@ import subprocess
 import typing
 import os
 import mimetypes
-import hotpatch
+from agent import hotpatch
 from urllib import parse
 
 import requests
