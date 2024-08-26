@@ -374,18 +374,9 @@ def construct_vuln(
                     f" has a security issue."
                 )
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}"
-            technical_detail = ""
-            if path is not None:
-                technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
-            technical_detail += f"```\n{vuln.description}\n```"
         else:
             vuln.cves.sort(reverse=True)
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}"
-
-            technical_detail = ""
-            if path is not None:
-                technical_detail = f"Dependency `{vuln.package_name}` Found in {path} has a security issue: \n"
-            technical_detail += f"{vuln.description}"
 
             if vuln.file_type is not None and vuln.file_name is not None:
                 description = (
@@ -398,6 +389,21 @@ def construct_vuln(
                     f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
                     f" has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
                 )
+
+        technical_detail = (
+            f"#### Dependency `{vuln.package_name}`:\n"
+            f"- **Version**: `{vuln.package_version}`\n"
+        )
+        if path is not None:
+            technical_detail += f"- **Location**: {path}\n"
+        osv_description = vuln.description.replace(
+            "## Recommendation\n\n", "Recommendation: "
+        )
+        if len(vuln.cves) == 0:
+            technical_detail += f"- **Description**:\n```{osv_description}\n```"
+        else:
+            technical_detail += f"- **Description**:\n{osv_description}\n"
+
         yield Vulnerability(
             entry=kb.Entry(
                 title=title,
