@@ -335,9 +335,7 @@ The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allo
     ) in agent_mock[0].data["technical_detail"]
 
     assert (
-        """## Recommendation
-
-Update to version 4.17.5 or later.
+        """Recommendation: Update to version 4.17.5 or later.
 - [CVE-2018-16487](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-16487) : Versions of `lodash` before 4.17.11 are vulnerable to prototype pollution. 
 
 The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects."""
@@ -428,7 +426,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
         in agent_mock[0].data["technical_detail"]
     )
     assert (
-        """- GHSA-f698-m2v9-5fh3 : Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\n## Recommendation\n\nUpgrade to version 6.1.0.\n\n"""
+        """- GHSA-f698-m2v9-5fh3 : Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n\n\nRecommendation: Upgrade to version 6.1.0.\n\n"""
         in agent_mock[0].data["technical_detail"]
     )
     assert (
