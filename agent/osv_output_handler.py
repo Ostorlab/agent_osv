@@ -400,7 +400,7 @@ def construct_vuln(
             "## Recommendation\n\n", "Recommendation: "
         )
         if len(vuln.cves) == 0:
-            technical_detail += f"- **Description**:\n```{osv_description}\n```"
+            technical_detail += f"- **Description**:\n```\n{osv_description}\n```"
         else:
             technical_detail += f"- **Description**:\n{osv_description}\n"
 
