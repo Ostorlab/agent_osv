@@ -514,7 +514,7 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061"
+        == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061 `lib/arm64-v8a/libBlinkID.so`"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert agent_mock[0].data["technical_detail"] == (
