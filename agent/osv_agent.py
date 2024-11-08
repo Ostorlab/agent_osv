@@ -282,6 +282,13 @@ class OSVAgent(
         )
 
         if api_result is None or api_result == {}:
+            api_result = osv_service_api.query_osv_api(
+                package_name=package_name.lower(),
+                version=package_version,
+                ecosystem=ecosystem,
+            )
+
+        if api_result is None or api_result == {}:
             return None
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
