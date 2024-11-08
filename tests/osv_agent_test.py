@@ -9,6 +9,7 @@ from pytest_mock import plugin
 
 from agent import cve_service_api
 from agent import osv_agent
+from agent.api_manager import osv_service_api
 
 
 def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
@@ -574,4 +575,65 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     assert (
         agent_mock[0].data["recommendation"]
         == "We recommend updating `opencv` to the latest available version."
+    )
+
+
+def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Ensure that the agent does detect vulnerabilities if the api returns no findings for Uppercase packages but returns findings for lowercase."""
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "Wordpress",
+        "library_version": "6.5.0",
+    }
+    query_osv_spy = mocker.spy(osv_service_api, "query_osv_api")
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert query_osv_spy.call_count == 2
+    spy_return_list = query_osv_spy.spy_return_list
+    assert spy_return_list[0] == {}
+    assert len(spy_return_list[1].get("vulns")) > 0
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307, CVE-2024-4439"
+    )
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307,CVE-2024-4439"
+    )
+    assert agent_mock[0].data["risk_rating"] == "HIGH"
+    assert agent_mock[0].data["technical_detail"] == (
+        "#### Dependency `Wordpress`:\n"
+        "- **Version**: `6.5.0`\n"
+        "- **Description**:\n"
+        "- "
+        "[CVE-2024-4439](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-4439) "
+        ": WordPress Core is vulnerable to Stored Cross-Site Scripting via user "
+        "display names in the Avatar block in various versions up to 6.5.2 due to "
+        "insufficient output escaping on the display name. This makes it possible for "
+        "authenticated attackers, with contributor-level access and above, to inject "
+        "arbitrary web scripts in pages that will execute whenever a user accesses an "
+        "injected page. In addition, it also makes it possible for unauthenticated "
+        "attackers to inject arbitrary web scripts in pages that have the comment "
+        "block present and display the comment author's avatar.\n"
+        "- "
+        "[CVE-2024-6307](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-6307) "
+        ": WordPress Core is vulnerable to Stored Cross-Site Scripting via the HTML "
+        "API in various versions prior to 6.5.5 due to insufficient input "
+        "sanitization and output escaping on URLs. This makes it possible for "
+        "authenticated attackers, with contributor-level access and above, to inject "
+        "arbitrary web scripts in pages that will execute whenever a user accesses an "
+        "injected page.\n"
+        "\n"
+    )
+    assert agent_mock[0].data["description"] == (
+        """Dependency `Wordpress` with version `6.5.0` has a security issue.
+The issue is identified by CVEs: `CVE-2024-6307, CVE-2024-4439`."""
     )
