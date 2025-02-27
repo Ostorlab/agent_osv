@@ -21,6 +21,7 @@ from rich import logging as rich_logging
 
 from agent import osv_output_handler
 from agent.api_manager import osv_service_api
+from agent import common
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -218,15 +219,35 @@ class OSVAgent(
             self._process_fingerprint_file(message)
 
     def _emit_vulnerabilities(
-        self, output: list[osv_output_handler.VulnData], path: str | None = None
+        self,
+        output: list[osv_output_handler.VulnData],
+        path: str | None = None,
+        file_content_url: bytes | None = None,
+        package_name: str | None = None,
+        package_version: str | None = None,
     ) -> None:
         vulnz = osv_output_handler.construct_vuln(output, path)
         for vuln in vulnz:
+            content_url = None
+            if file_content_url is not None:
+                content_url = file_content_url.decode()
+            vuln_location = common.build_vuln_location(
+                content_url=content_url,
+                file_path=path,
+                package_name=package_name,
+                package_version=package_version,
+            )
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
-                dna=vuln.dna,
                 risk_rating=vuln.risk_rating,
+                vulnerability_location=vuln_location,
+                dna=common.compute_dna(
+                    vuln_title=vuln.entry.title,
+                    vuln_location=vuln_location,
+                    package_name=vuln.package_name,
+                    package_version=vuln.package_version,
+                ),
             )
 
     def _process_asset(self, message: m.Message) -> None:
@@ -252,7 +273,11 @@ class OSVAgent(
                     scan_results, self.api_key
                 )
                 if len(parsed_output) > 0:
-                    self._emit_vulnerabilities(output=parsed_output)
+                    self._emit_vulnerabilities(
+                        output=parsed_output,
+                        file_content_url=message.data.get("content_url"),
+                        path=path,
+                    )
 
     def _process_fingerprint_file(self, message: m.Message) -> None:
         """Process message of type v3.fingerprint.file."""
@@ -304,7 +329,12 @@ class OSVAgent(
         if len(parsed_osv_output) == 0:
             return None
 
-        self._emit_vulnerabilities(output=parsed_osv_output, path=path)
+        self._emit_vulnerabilities(
+            output=parsed_osv_output,
+            path=path,
+            package_name=package_name,
+            package_version=package_version,
+        )
 
 
 def _is_valid_osv_result(results: str | None) -> bool:

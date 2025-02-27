@@ -45,6 +45,8 @@ class Vulnerability:
     dna: str
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
+    package_name: str | None
+    package_version: str | None
 
 
 @dataclasses.dataclass
@@ -426,6 +428,8 @@ def construct_vuln(
                 if vuln.risk.upper() in RISK_RATINGS
                 else "POTENTIALLY"
             ],
+            package_name=vuln.package_name,
+            package_version=vuln.package_version,
         )
 
 
