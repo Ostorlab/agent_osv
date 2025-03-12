@@ -602,11 +602,11 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
     assert len(agent_mock) == 1
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307, CVE-2024-4439"
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307, CVE-2024-4439, CVE-2024-32111, CVE-2024-31111"
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307,CVE-2024-4439"
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307,CVE-2024-4439,CVE-2024-32111,CVE-2024-31111"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
     assert agent_mock[0].data["technical_detail"] == (
@@ -624,6 +624,26 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
         "attackers to inject arbitrary web scripts in pages that have the comment "
         "block present and display the comment author's avatar.\n"
         "- "
+        "[CVE-2024-31111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-31111) "
+        ": Improper Neutralization of Input During Web Page Generation (XSS or "
+        "'Cross-site Scripting') vulnerability in Automattic WordPress allows Stored "
+        "XSS.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 through "
+        "6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 through "
+        "6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9.\n"
+        "- "
+        "[CVE-2024-32111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-32111) "
+        ": Improper Limitation of a Pathname to a Restricted Directory ('Path "
+        "Traversal') vulnerability in Automattic WordPress allows Relative Path "
+        "Traversal.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 "
+        "through 6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 "
+        "through 6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9, from 5.8 "
+        "through 5.8.9, from 5.7 through 5.7.11, from 5.6 through 5.6.13, from 5.5 "
+        "through 5.5.14, from 5.4 through 5.4.15, from 5.3 through 5.3.17, from 5.2 "
+        "through 5.2.20, from 5.1 through 5.1.18, from 5.0 through 5.0.21, from 4.9 "
+        "through 4.9.25, from 4.8 through 4.8.24, from 4.7 through 4.7.28, from 4.6 "
+        "through 4.6.28, from 4.5 through 4.5.31, from 4.4 through 4.4.32, from 4.3 "
+        "through 4.3.33, from 4.2 through 4.2.37, from 4.1 through 4.1.40.\n"
+        "- "
         "[CVE-2024-6307](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-6307) "
         ": WordPress Core is vulnerable to Stored Cross-Site Scripting via the HTML "
         "API in various versions prior to 6.5.5 due to insufficient input "
@@ -634,6 +654,7 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
         "\n"
     )
     assert agent_mock[0].data["description"] == (
-        """Dependency `Wordpress` with version `6.5.0` has a security issue.
-The issue is identified by CVEs: `CVE-2024-6307, CVE-2024-4439`."""
+        "Dependency `Wordpress` with version `6.5.0` has a security issue.\n"
+        "The issue is identified by CVEs: `CVE-2024-6307, CVE-2024-4439, "
+        "CVE-2024-32111, CVE-2024-31111`."
     )
