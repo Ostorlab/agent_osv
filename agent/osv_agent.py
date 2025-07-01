@@ -144,6 +144,7 @@ def _construct_commands(file_path: str) -> list[list[str]]:
     return [
         [
             "/usr/local/bin/osv-scanner",
+            "--ignore-dev",
             "--format",
             "json",
             "--lockfile",
@@ -151,6 +152,7 @@ def _construct_commands(file_path: str) -> list[list[str]]:
         ],
         [
             "/usr/local/bin/osv-scanner",
+            "--ignore-dev",
             "--format",
             "json",
             "--sbom",
