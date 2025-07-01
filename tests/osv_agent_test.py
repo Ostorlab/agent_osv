@@ -43,7 +43,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
 
     test_agent.process(scan_message_file)
 
-    assert "/usr/local/bin/osv-scanner --format json --lockfile" in " ".join(
+    assert "/usr/local/bin/osv-scanner --ignore-dev --format json --lockfile" in " ".join(
         subprocess_mock.call_args.args[0]
     )
     assert len(agent_mock) > 0
@@ -89,7 +89,7 @@ def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
 
     test_agent.process(scan_message_link)
 
-    assert "/usr/local/bin/osv-scanner --format json --lockfile" in " ".join(
+    assert "/usr/local/bin/osv-scanner --ignore-dev --format json --lockfile" in " ".join(
         subprocess_mock.call_args.args[0]
     )
     assert len(agent_mock) > 0
@@ -135,7 +135,7 @@ def testAgentOSV_whenAnalysisRunsWithBadFile_noCrash(
 
     test_agent.process(scan_message_bad_file)
 
-    assert "/usr/local/bin/osv-scanner --format json --lockfile" in " ".join(
+    assert "/usr/local/bin/osv-scanner --ignore-dev --format json --lockfile" in " ".join(
         subprocess_mock.call_args.args[0]
     )
     assert len(agent_mock) > 0
