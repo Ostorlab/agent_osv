@@ -56,6 +56,10 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
         == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
+    assert agent_mock[0].data.get("vulnerability_location") is not None
+    assert "package_lock.json" in agent_mock[0].data.get(
+        "vulnerability_location", {}
+    ).get("file", {}).get("path", "")
 
 
 def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
@@ -102,6 +106,14 @@ def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
         == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
+    assert agent_mock[0].data.get("vulnerability_location") is not None
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("domain_name", {})
+        .get("name")
+        == "rexel.com"
+    )
 
 
 def testAgentOSV_whenAnalysisRunsWithBadFile_noCrash(
@@ -540,6 +552,10 @@ The issue is identified by CVEs: `CVE-2019-10061`."""
         agent_mock[0].data["recommendation"]
         == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
+    assert agent_mock[0].data.get("vulnerability_location") is not None
+    assert "libBlinkID.so" in agent_mock[0].data.get("vulnerability_location", {}).get(
+        "file", {}
+    ).get("path")
 
 
 def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz(
@@ -657,4 +673,118 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
         "Dependency `Wordpress` with version `6.5.0` has a security issue.\n"
         "The issue is identified by CVEs: `CVE-2024-6307, CVE-2024-4439, "
         "CVE-2024-32111, CVE-2024-31111`."
+    )
+
+
+def testAgentOSV_whenIosMetadataWithBundleId_prepareVulnerabilityLocation(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    fake_osv_output: str,
+    osv_output_as_dict: dict[str, str],
+) -> None:
+    """Ensure that the agent prepares the vulnerability location correctly when ios_metadata is present."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.osv_agent._run_command", return_value=fake_osv_output)
+    mocker.patch(
+        "agent.osv_output_handler.read_output_file_as_dict",
+        return_value=osv_output_as_dict,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    selector = "v3.asset.file"
+    msg_data = {
+        "content": b"some file content",
+        "path": "/tmp/path/file.txt",
+        "ios_metadata": {"bundle_id": "com.example.app"},
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) > 0
+    assert agent_mock[0].data.get("vulnerability_location") is not None
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("ios_store", {})
+        .get("bundle_id")
+        == "com.example.app"
+    )
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("metadata", [{}])[0]
+        .get("type")
+        == "FILE_PATH"
+    )
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("metadata", [{}])[0]
+        .get("value")
+        == "/tmp/path/file.txt"
+    )
+
+
+def testAgentOSV_whenAndroidMetadataWithPackageName_prepareVulnerabilityLocation(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    fake_osv_output: str,
+    osv_output_as_dict: dict[str, str],
+) -> None:
+    """Ensure that the agent prepares the vulnerability location correctly when android_metadata is present."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.osv_agent._run_command", return_value=fake_osv_output)
+    mocker.patch(
+        "agent.osv_output_handler.read_output_file_as_dict",
+        return_value=osv_output_as_dict,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    selector = "v3.asset.file"
+    msg_data = {
+        "content": b"some file content",
+        "path": "/tmp/path/file.txt",
+        "android_metadata": {"package_name": "com.example.app"},
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) > 0
+    assert agent_mock[0].data.get("vulnerability_location") is not None
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("android_store", {})
+        .get("package_name")
+        == "com.example.app"
+    )
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("metadata", [{}])[0]
+        .get("type")
+        == "FILE_PATH"
+    )
+    assert (
+        agent_mock[0]
+        .data.get("vulnerability_location", {})
+        .get("metadata", [{}])[0]
+        .get("value")
+        == "/tmp/path/file.txt"
     )
