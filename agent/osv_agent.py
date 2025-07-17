@@ -23,7 +23,6 @@ from agent import osv_output_handler
 from agent.api_manager import osv_service_api
 from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
-from ostorlab.assets import file
 from ostorlab.assets import domain_name
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
 
@@ -200,19 +199,18 @@ def _get_file_type(content: bytes, path: str | None) -> str:
 
 def _prepare_vulnerability_location(
     message: m.Message,
-) -> vuln_mixin.VulnerabilityLocation:
+) -> vuln_mixin.VulnerabilityLocation | None:
     """
     Prepare the vulnerability location based on the message data.
 
     Args:
         message: The message containing the data to prepare the vulnerability location.
+
+    Returns:
+        VulnerabilityLocation if asset is found, None otherwise.
     """
     asset: (
-        domain_name.DomainName
-        | ios_store.IOSStore
-        | android_store.AndroidStore
-        | file.File
-        | None
+        domain_name.DomainName | ios_store.IOSStore | android_store.AndroidStore | None
     ) = None
     metadata = []
     if message.selector == "v3.asset.link":
@@ -226,17 +224,6 @@ def _prepare_vulnerability_location(
                     value=url,
                 )
             )
-    elif message.selector == "v3.fingerprint.file":
-        path = message.data.get("path")
-        asset = file.File(
-            path=path or "",
-        )
-        metadata.append(
-            vuln_mixin.VulnerabilityLocationMetadata(
-                metadata_type=vuln_mixin.MetadataType.FILE_PATH,
-                value=path or "",
-            )
-        )
 
     else:
         package_name = message.data.get("android_metadata", {}).get("package_name")
@@ -245,16 +232,15 @@ def _prepare_vulnerability_location(
             asset = ios_store.IOSStore(bundle_id=bundle_id)
         elif package_name is not None:
             asset = android_store.AndroidStore(package_name=package_name)
-        else:
-            asset = file.File(
-                path=message.data.get("path") or "",
-            )
         metadata.append(
             vuln_mixin.VulnerabilityLocationMetadata(
                 metadata_type=vuln_mixin.MetadataType.FILE_PATH,
                 value=message.data.get("path") or "",
             )
         )
+
+    if asset is None:
+        return None
 
     return vuln_mixin.VulnerabilityLocation(
         asset=asset,

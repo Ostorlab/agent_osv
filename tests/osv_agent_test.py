@@ -56,10 +56,6 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
         == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
-    assert agent_mock[0].data.get("vulnerability_location") is not None
-    assert "package_lock.json" in agent_mock[0].data.get(
-        "vulnerability_location", {}
-    ).get("file", {}).get("path", "")
 
 
 def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
@@ -552,10 +548,6 @@ The issue is identified by CVEs: `CVE-2019-10061`."""
         agent_mock[0].data["recommendation"]
         == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
-    assert agent_mock[0].data.get("vulnerability_location") is not None
-    assert "libBlinkID.so" in agent_mock[0].data.get("vulnerability_location", {}).get(
-        "file", {}
-    ).get("path")
 
 
 def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz(
