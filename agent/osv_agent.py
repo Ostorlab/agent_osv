@@ -21,6 +21,11 @@ from rich import logging as rich_logging
 
 from agent import osv_output_handler
 from agent.api_manager import osv_service_api
+from ostorlab.assets import ios_store
+from ostorlab.assets import android_store
+from ostorlab.assets import domain_name
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -192,6 +197,57 @@ def _get_file_type(content: bytes, path: str | None) -> str:
         return file_split
 
 
+def _prepare_vulnerability_location(
+    message: m.Message,
+) -> vuln_mixin.VulnerabilityLocation | None:
+    """
+    Prepare the vulnerability location based on the message data.
+
+    Args:
+        message: The message containing the data to prepare the vulnerability location.
+
+    Returns:
+        VulnerabilityLocation if asset is found, None otherwise.
+    """
+    asset: (
+        domain_name.DomainName | ios_store.IOSStore | android_store.AndroidStore | None
+    ) = None
+    metadata = []
+    if message.selector == "v3.asset.link":
+        url = message.data.get("url")
+        url_netloc = parse.urlparse(url).netloc
+        asset = domain_name.DomainName(name=str(url_netloc))
+        if url is not None:
+            metadata.append(
+                vuln_mixin.VulnerabilityLocationMetadata(
+                    metadata_type=vuln_mixin.MetadataType.URL,
+                    value=url,
+                )
+            )
+
+    else:
+        package_name = message.data.get("android_metadata", {}).get("package_name")
+        bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")
+        if bundle_id is not None:
+            asset = ios_store.IOSStore(bundle_id=bundle_id)
+        elif package_name is not None:
+            asset = android_store.AndroidStore(package_name=package_name)
+        metadata.append(
+            vuln_mixin.VulnerabilityLocationMetadata(
+                metadata_type=vuln_mixin.MetadataType.FILE_PATH,
+                value=message.data.get("path") or "",
+            )
+        )
+
+    if asset is None:
+        return None
+
+    return vuln_mixin.VulnerabilityLocation(
+        asset=asset,
+        metadata=metadata,
+    )
+
+
 class OSVAgent(
     agent.Agent,
     agent_report_vulnerability_mixin.AgentReportVulnMixin,
@@ -218,7 +274,10 @@ class OSVAgent(
             self._process_fingerprint_file(message)
 
     def _emit_vulnerabilities(
-        self, output: list[osv_output_handler.VulnData], path: str | None = None
+        self,
+        output: list[osv_output_handler.VulnData],
+        vulnerability_location: vuln_mixin.VulnerabilityLocation | None,
+        path: str | None = None,
     ) -> None:
         vulnz = osv_output_handler.construct_vuln(output, path)
         for vuln in vulnz:
@@ -227,6 +286,7 @@ class OSVAgent(
                 technical_detail=vuln.technical_detail,
                 dna=vuln.dna,
                 risk_rating=vuln.risk_rating,
+                vulnerability_location=vulnerability_location,
             )
 
     def _process_asset(self, message: m.Message) -> None:
@@ -252,7 +312,11 @@ class OSVAgent(
                     scan_results, self.api_key
                 )
                 if len(parsed_output) > 0:
-                    self._emit_vulnerabilities(output=parsed_output)
+                    vulnerability_location = _prepare_vulnerability_location(message)
+                    self._emit_vulnerabilities(
+                        output=parsed_output,
+                        vulnerability_location=vulnerability_location,
+                    )
 
     def _process_fingerprint_file(self, message: m.Message) -> None:
         """Process message of type v3.fingerprint.file."""
@@ -303,8 +367,12 @@ class OSVAgent(
 
         if len(parsed_osv_output) == 0:
             return None
-
-        self._emit_vulnerabilities(output=parsed_osv_output, path=path)
+        vulnerability_location = _prepare_vulnerability_location(message)
+        self._emit_vulnerabilities(
+            output=parsed_osv_output,
+            path=path,
+            vulnerability_location=vulnerability_location,
+        )
 
 
 def _is_valid_osv_result(results: str | None) -> bool:
