@@ -7,7 +7,7 @@ RUN apk add build-base
 RUN mkdir /install
 WORKDIR /install
 COPY requirement.txt /requirement.txt
-RUN pip install --prefix=/install -r /requirement.txt
+RUN pip install --upgrade pip && pip install --prefix=/install -r /requirement.txt
 
 FROM base
 RUN apk add libmagic
