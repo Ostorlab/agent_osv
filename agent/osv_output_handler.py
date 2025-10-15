@@ -404,11 +404,13 @@ def construct_vuln(
         else:
             technical_detail += f"- **Description**:\n{osv_description}\n"
 
+        short_description = f"Dependency `{vuln.package_name}` with version `{vuln.package_version}` has a security issue."
+
         yield Vulnerability(
             entry=kb.Entry(
                 title=title,
                 risk_rating=vuln.risk,
-                short_description=vuln.summary,
+                short_description=short_description,
                 description=description,
                 references=build_references(vuln.references),
                 security_issue=True,
@@ -419,7 +421,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {','.join(vuln.cves[:MAX_SHOWN_CVES])}{f' {path}' if path is not None else ''}",
+            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}{f': {path}' if path is not None else ''}",
             technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()

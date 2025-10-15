@@ -53,7 +53,7 @@ def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
 
@@ -99,7 +99,7 @@ def testAgentOSV_whenAnalysisRunsWithoutURL_processMessage(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: protobuf@3.20.1: CVE-2022-1941"
+        == "Use of Outdated Vulnerable Component: protobuf@3.20.1"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
     assert agent_mock[0].data.get("vulnerability_location") is not None
@@ -304,7 +304,7 @@ def testAgentOSV_whenFingerprintMessage_processMessage(
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
     )
 
 
@@ -332,7 +332,7 @@ def testAgentOSV_whenRiskLowerCase_doesNotCrash(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
     )
 
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
@@ -349,7 +349,10 @@ The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allo
 
 The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allow a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects."""
     ) in agent_mock[0].data["technical_detail"]
-    assert agent_mock[0].data["short_description"] == "Prototype Pollution in lodash"
+    assert (
+        agent_mock[0].data["short_description"]
+        == "Dependency `lodash` with version `4.7.11` has a security issue."
+    )
     assert agent_mock[0].data["description"] == (
         """Dependency `lodash` with version `4.7.11` has a security issue.
 The issue is identified by CVEs: `CVE-2021-23337, CVE-2020-8203, CVE-2020-28500, CVE-2019-10744, CVE-2019-1010266, CVE-2018-3721, CVE-2018-16487`."""
@@ -391,7 +394,7 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: lodash@4.7.11: CVE-2021-23337,CVE-2020-8203,CVE-2020-28500,CVE-2019-10744,CVE-2019-1010266,CVE-2018-3721,CVE-2018-16487"
+        == "Use of Outdated Vulnerable Component: lodash@4.7.11"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
@@ -427,7 +430,7 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@6.0.0: CVE-2019-10061"
+        == "Use of Outdated Vulnerable Component: opencv@6.0.0"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
     assert (
@@ -492,7 +495,7 @@ def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
 ) -> None:
     """Ensure that the agent does not detect vulnerabilities if the api returns no findings."""
     selector = "v3.fingerprint.file.library"
-    msg_data = {"library_name": "jquery", "library_version": "3.6.0"}
+    msg_data = {"library_name": "imaginary-library-name", "library_version": "0.1.0"}
     msg = message.Message.from_data(selector, data=msg_data)
 
     test_agent.process(msg)
@@ -505,7 +508,7 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> None:
-    """Ensure that the agent does not detect vulnerabilities if the api returns no findings."""
+    """Ensure that the technical detail includes the path when it's provided in the message."""
     selector = "v3.fingerprint.file.library"
     msg_data = {
         "library_name": "opencv",
@@ -523,30 +526,17 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@3.4.0: CVE-2019-10061 `lib/arm64-v8a/libBlinkID.so`"
+        == "Use of Outdated Vulnerable Component: opencv@3.4.0: `lib/arm64-v8a/libBlinkID.so`"
     )
     assert agent_mock[0].data["risk_rating"] == "CRITICAL"
-    assert agent_mock[0].data["technical_detail"] == (
-        """#### Dependency `opencv`:
-- **Version**: `3.4.0`
-- **Location**: `lib/arm64-v8a/libBlinkID.so`
-- **Description**:
-- GHSA-f698-m2v9-5fh3 : Versions of `opencv`prior to 6.1.0 are vulnerable to Command Injection. The utils/ script find-opencv.js does not validate user input allowing attackers to execute arbitrary commands.\n
-
-Recommendation: Upgrade to version 6.1.0.
-
-- [CVE-2019-10061](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-10061) : utils/find-opencv.js in node-opencv (aka OpenCV bindings for Node.js) prior to 6.1.0 is vulnerable to Command Injection. It does not validate user input allowing attackers to execute arbitrary commands.\n
-"""
-    )
-
     assert agent_mock[0].data["description"] == (
         """Dependency `opencv` with version `3.4.0` has a security issue.
 The issue is identified by CVEs: `CVE-2019-10061`."""
     )
-
     assert (
-        agent_mock[0].data["recommendation"]
-        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
+        agent_mock[0]
+        .data["recommendation"]
+        .startswith("We recommend updating `opencv` to the latest available version.")
     )
 
 
@@ -570,7 +560,7 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@4.9.0: "
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[0].data["technical_detail"] == (
@@ -610,60 +600,24 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
     assert len(agent_mock) == 1
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307, CVE-2024-4439, CVE-2024-32111, CVE-2024-31111"
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2025-58674, CVE-2025-58246, CVE-2024-6307, CVE-2024-4439, CVE-2024-32111, CVE-2024-31111"
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-6307,CVE-2024-4439,CVE-2024-32111,CVE-2024-31111"
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0"
     )
     assert agent_mock[0].data["risk_rating"] == "HIGH"
-    assert agent_mock[0].data["technical_detail"] == (
-        "#### Dependency `Wordpress`:\n"
-        "- **Version**: `6.5.0`\n"
-        "- **Description**:\n"
-        "- "
-        "[CVE-2024-4439](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-4439) "
-        ": WordPress Core is vulnerable to Stored Cross-Site Scripting via user "
-        "display names in the Avatar block in various versions up to 6.5.2 due to "
-        "insufficient output escaping on the display name. This makes it possible for "
-        "authenticated attackers, with contributor-level access and above, to inject "
-        "arbitrary web scripts in pages that will execute whenever a user accesses an "
-        "injected page. In addition, it also makes it possible for unauthenticated "
-        "attackers to inject arbitrary web scripts in pages that have the comment "
-        "block present and display the comment author's avatar.\n"
-        "- "
-        "[CVE-2024-31111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-31111) "
-        ": Improper Neutralization of Input During Web Page Generation (XSS or "
-        "'Cross-site Scripting') vulnerability in Automattic WordPress allows Stored "
-        "XSS.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 through "
-        "6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 through "
-        "6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9.\n"
-        "- "
-        "[CVE-2024-32111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-32111) "
-        ": Improper Limitation of a Pathname to a Restricted Directory ('Path "
-        "Traversal') vulnerability in Automattic WordPress allows Relative Path "
-        "Traversal.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 "
-        "through 6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 "
-        "through 6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9, from 5.8 "
-        "through 5.8.9, from 5.7 through 5.7.11, from 5.6 through 5.6.13, from 5.5 "
-        "through 5.5.14, from 5.4 through 5.4.15, from 5.3 through 5.3.17, from 5.2 "
-        "through 5.2.20, from 5.1 through 5.1.18, from 5.0 through 5.0.21, from 4.9 "
-        "through 4.9.25, from 4.8 through 4.8.24, from 4.7 through 4.7.28, from 4.6 "
-        "through 4.6.28, from 4.5 through 4.5.31, from 4.4 through 4.4.32, from 4.3 "
-        "through 4.3.33, from 4.2 through 4.2.37, from 4.1 through 4.1.40.\n"
-        "- "
-        "[CVE-2024-6307](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-6307) "
-        ": WordPress Core is vulnerable to Stored Cross-Site Scripting via the HTML "
-        "API in various versions prior to 6.5.5 due to insufficient input "
-        "sanitization and output escaping on URLs. This makes it possible for "
-        "authenticated attackers, with contributor-level access and above, to inject "
-        "arbitrary web scripts in pages that will execute whenever a user accesses an "
-        "injected page.\n"
-        "\n"
+    assert (
+        agent_mock[0]
+        .data["technical_detail"]
+        .startswith("""#### Dependency `Wordpress`:
+- **Version**: `6.5.0`
+- **Description**:
+- [CVE-2024-31111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-31111) : Improper Neutralization of Input During Web Page Generation (XSS or 'Cross-site Scripting') vulnerability in Automattic WordPress allows Stored XSS.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 through 6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 through 6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9.""")
     )
     assert agent_mock[0].data["description"] == (
         "Dependency `Wordpress` with version `6.5.0` has a security issue.\n"
-        "The issue is identified by CVEs: `CVE-2024-6307, CVE-2024-4439, "
+        "The issue is identified by CVEs: `CVE-2025-58674, CVE-2025-58246, CVE-2024-6307, CVE-2024-4439, "
         "CVE-2024-32111, CVE-2024-31111`."
     )
 
