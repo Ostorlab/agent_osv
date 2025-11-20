@@ -9,6 +9,7 @@ from pytest_mock import plugin
 
 from agent import cve_service_api
 from agent import osv_agent
+from agent import osv_output_handler
 from agent.api_manager import osv_service_api
 
 
@@ -734,3 +735,177 @@ def testAgentOSV_whenAndroidMetadataWithPackageName_prepareVulnerabilityLocation
         .get("value")
         == "/tmp/path/file.txt"
     )
+
+
+def testRunOsvDirectory_whenGoModFile_scansDirectory(
+    mocker: plugin.MockerFixture,
+    fake_go_osv_output: str,
+    tmp_path: Any,
+) -> None:
+    """Unit test for _run_osv_directory function with go.mod file."""
+    workspace_dir = tmp_path / "workspace"
+    workspace_dir.mkdir()
+    go_mod_path = str(workspace_dir / "go.mod")
+    go_mod_content = b"module example.com/myapp\n\ngo 1.21\n"
+
+    mock_subprocess = mocker.Mock()
+    mock_subprocess.stdout = fake_go_osv_output
+    mock_subprocess_run = mocker.patch("subprocess.run", return_value=mock_subprocess)
+    mocker.patch("agent.hotpatch.hotpatch", return_value=("go.mod", go_mod_content))
+
+    result = osv_agent._run_osv_directory(go_mod_path, go_mod_content)
+
+    assert result is not None
+    assert result == fake_go_osv_output
+    assert mock_subprocess_run.call_count == 1
+    call_args = mock_subprocess_run.call_args
+    assert call_args[0][0][0] == "/usr/local/bin/osv-scanner"
+    assert call_args[0][0][1] == "--format"
+    assert call_args[0][0][2] == "json"
+    assert str(workspace_dir) in call_args[0][0][3]
+
+
+def testRunOsvDirectory_whenSubprocessFails_returnsNone(
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Unit test for _run_osv_directory when subprocess fails."""
+    workspace_dir = tmp_path / "workspace"
+    workspace_dir.mkdir()
+    go_mod_path = str(workspace_dir / "go.mod")
+    go_mod_content = b"module example.com/myapp\n"
+
+    mock_subprocess = mocker.Mock()
+    mock_subprocess.stdout = '{"results": []}'
+    mocker.patch("subprocess.run", return_value=mock_subprocess)
+    mocker.patch("agent.hotpatch.hotpatch", return_value=("go.mod", go_mod_content))
+
+    result = osv_agent._run_osv_directory(go_mod_path, go_mod_content)
+
+    assert result is None
+
+
+def testRunOsvDirectory_whenExceptionOccurs_returnsNone(
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    workspace_dir = tmp_path / "workspace"
+    workspace_dir.mkdir()
+    go_mod_path = str(workspace_dir / "go.mod")
+    go_mod_content = b"module example.com/myapp\n"
+
+    mocker.patch("subprocess.run", side_effect=OSError("Test error"))
+    mocker.patch("agent.hotpatch.hotpatch", return_value=("go.mod", go_mod_content))
+
+    result = osv_agent._run_osv_directory(go_mod_path, go_mod_content)
+
+    assert result is None
+
+
+def testAgentOSV_whenGoModFile_usesDirectoryScanning(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    go_mod_file_message: message.Message,
+    mocker: plugin.MockerFixture,
+    fake_go_osv_output: str,
+) -> None:
+    """Unit test for OSV agent processing go.mod file using directory scanning."""
+    vuln_data = osv_output_handler.VulnData(
+        package_name="github.com/gin-gonic/gin",
+        package_version="1.9.0",
+        risk="HIGH",
+        description="Test vulnerability in gin",
+        summary="Test vulnerability",
+        fixed_version="1.9.1",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    directory_scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv_directory", return_value=fake_go_osv_output
+    )
+    mocker.patch(
+        "agent.osv_output_handler.parse_osv_output",
+        return_value=[vuln_data],
+    )
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+
+    test_agent.process(go_mod_file_message)
+
+    assert directory_scan_mock.call_count == 1
+    call_args = directory_scan_mock.call_args
+    assert "/workspace/go.mod" in call_args[0][0]
+    assert b"module example.com/myapp" in call_args[0][1]
+
+
+def testAgentOSV_whenGoSumFile_usesDirectoryScanning(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    go_sum_file_message: message.Message,
+    mocker: plugin.MockerFixture,
+    fake_go_osv_output: str,
+) -> None:
+    """Unit test for OSV agent processing go.sum file using directory scanning."""
+    vuln_data = osv_output_handler.VulnData(
+        package_name="github.com/gin-gonic/gin",
+        package_version="1.9.0",
+        risk="HIGH",
+        description="Test vulnerability in gin",
+        summary="Test vulnerability",
+        fixed_version="1.9.1",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    directory_scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv_directory", return_value=fake_go_osv_output
+    )
+    mocker.patch(
+        "agent.osv_output_handler.parse_osv_output",
+        return_value=[vuln_data],
+    )
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+
+    test_agent.process(go_sum_file_message)
+
+    assert directory_scan_mock.call_count == 1
+    call_args = directory_scan_mock.call_args
+    assert "/workspace/go.sum" in call_args[0][0]
+
+
+def testAgentOSV_whenGoModFileWithNoVulnerabilities_doesNotEmit(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    go_mod_file_message: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unit test for OSV agent when go.mod scan finds no vulnerabilities."""
+    mocker.patch("agent.osv_agent._run_osv_directory", return_value='{"results": []}')
+    mocker.patch(
+        "agent.osv_output_handler.parse_osv_output",
+        return_value=[],
+    )
+
+    test_agent.process(go_mod_file_message)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenGoModFileScanFails_doesNotEmit(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    go_mod_file_message: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unit test for OSV agent when go.mod scan fails."""
+    mocker.patch("agent.osv_agent._run_osv_directory", return_value=None)
+
+    test_agent.process(go_mod_file_message)
+
+    assert len(agent_mock) == 0

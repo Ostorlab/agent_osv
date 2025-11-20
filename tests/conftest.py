@@ -267,3 +267,60 @@ def elf_library_fingerprint_msg() -> message.Message:
         "library_type": "ELF_LIBRARY",
     }
     return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def go_mod_file_message() -> message.Message:
+    """Creates a dummy message of type v3.asset.file for go.mod file."""
+    selector = "v3.asset.file"
+    go_mod_content = b"""module example.com/myapp
+
+go 1.21
+
+require (
+    github.com/gin-gonic/gin v1.9.0
+)
+"""
+    msg_data = {"content": go_mod_content, "path": "/workspace/go.mod"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def go_sum_file_message() -> message.Message:
+    """Creates a dummy message of type v3.asset.file for go.sum file."""
+    selector = "v3.asset.file"
+    go_sum_content = b"""github.com/gin-gonic/gin v1.9.0 h1:test
+github.com/gin-gonic/gin v1.9.0/go.mod h1:test
+"""
+    msg_data = {"content": go_sum_content, "path": "/workspace/go.sum"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def fake_go_osv_output() -> str:
+    """Return fake OSV output for Go module scanning."""
+    return json.dumps(
+        {
+            "results": [
+                {
+                    "source": {"path": "/workspace/go.mod", "type": "lockfile"},
+                    "packages": [
+                        {
+                            "package": {
+                                "name": "github.com/gin-gonic/gin",
+                                "version": "1.9.0",
+                                "ecosystem": "Go",
+                            },
+                            "vulnerabilities": [
+                                {
+                                    "id": "GO-2024-1234",
+                                    "aliases": ["CVE-2024-1234"],
+                                    "summary": "Test vulnerability in gin",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+    )

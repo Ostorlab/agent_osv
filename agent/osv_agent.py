@@ -184,6 +184,43 @@ def _run_osv(path: str, content: bytes) -> str | None:
     return None
 
 
+def _run_osv_directory(original_path: str, content: bytes) -> str | None:
+    """Perform OSV scan on a directory (for Go projects) to preserve context.
+
+    Args:
+        original_path: Original file path (e.g., "/workspace/go.mod")
+        content: File content as bytes
+
+    Returns:
+        OSV scan results as JSON string, or None if scan fails
+    """
+    try:
+        original_path_obj = pathlib.Path(original_path)
+        module_dir = original_path_obj.parent.resolve()
+
+        # Write file to module directory
+        patched_path, patched_content = hotpatch.hotpatch(
+            original_path_obj.name, content
+        )
+        file_path = module_dir / original_path_obj.name
+        file_path.write_text(
+            patched_content.decode("utf-8", errors="ignore"), encoding="utf-8"
+        )
+
+        # Scan directory instead of just the file
+        command = ["/usr/local/bin/osv-scanner", "--format", "json", str(module_dir)]
+        output = subprocess.run(
+            command, cwd=module_dir, capture_output=True, text=True, check=False
+        )
+
+        if _is_valid_osv_result(output.stdout):
+            return output.stdout
+        return None
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        logger.error("Error during directory scan: %s", e, exc_info=True)
+        return None
+
+
 def _get_file_type(content: bytes, path: str | None) -> str:
     if path is None:
         mime = magic.from_buffer(content, mime=True)
@@ -302,6 +339,22 @@ class OSVAgent(
         if file_type in FILE_TYPE_BLACKLIST:
             logger.debug("File type is blacklisted.")
             return
+
+        # Special handling for Go module files to preserve directory context
+        if path is not None and path.endswith(("go.mod", "go.sum")) is True:
+            scan_results = _run_osv_directory(path, content)
+            if scan_results is not None:
+                parsed_output = osv_output_handler.parse_osv_output(
+                    scan_results, self.api_key
+                )
+                if len(parsed_output) > 0:
+                    vulnerability_location = _prepare_vulnerability_location(message)
+                    self._emit_vulnerabilities(
+                        output=parsed_output,
+                        vulnerability_location=vulnerability_location,
+                    )
+            return
+
         for file_name in SUPPORTED_OSV_FILE_NAMES:
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
