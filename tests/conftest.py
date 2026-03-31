@@ -270,6 +270,19 @@ def elf_library_fingerprint_msg() -> message.Message:
 
 
 @pytest.fixture
+def android_library_finger_print() -> message.Message:
+    selector = "v3.fingerprint.file.android.library"
+    msg_data = {
+        "path": "/workspace/go.mod",
+        "package_name": "com.app.package",
+        "library_name": "opencv",
+        "library_version": "4.9.0",
+        "library_type": "ELF_LIBRARY",
+    }
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
 def go_mod_file_message() -> message.Message:
     """Creates a dummy message of type v3.asset.file for go.mod file."""
     selector = "v3.asset.file"

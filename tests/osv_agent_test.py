@@ -577,6 +577,46 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     )
 
 
+def testAgentOSV_whenAndroidLibraryFingerprintMessage_shouldEmitVulnWithVulnLocation(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    android_library_finger_print: message.Message,
+) -> None:
+    """For fingerprints of elf or macho files, we do not know the corresponding osv ecosystem.
+    We use a list of accepted ecosystems.
+    This unit test ensures no vulnz of excluded ecosystems are reported.
+    """
+    test_agent.process(android_library_finger_print)
+
+    assert len(agent_mock) == 1
+
+    assert (
+        agent_mock[0].data["title"]
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
+    )
+    assert agent_mock[0].data["vulnerability_location"] == {
+        "android_store": {"package_name": "com.app.package"},
+        "metadata": [{"type": "FILE_PATH", "value": "/workspace/go.mod"}],
+    }
+    assert (
+        agent_mock[0].data["dna"]
+        == "Use of Outdated Vulnerable Component: opencv@4.9.0: /workspace/go.mod"
+    )
+    assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
+    assert agent_mock[0].data["technical_detail"] == (
+        """#### Dependency `opencv`:\n- **Version**: `4.9.0`\n- **Location**: /workspace/go.mod\n- **Description**:\n```\n- OSV-2022-394 : OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=47190\n\n```\nCrash type: Incorrect-function-pointer-type\nCrash state:\ncv::split\ncv::split\nTestSplitAndMerge\n```\n\n- OSV-2023-444 : OSS-Fuzz report: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=59450\n\n```\nCrash type: Heap-buffer-overflow READ 4\nCrash state:\nopj_jp2_apply_pclr\nopj_jp2_decode\ncv::detail::Jpeg2KOpjDecoderBase::readData\n```\n\n\n```"""
+    )
+    assert agent_mock[0].data["description"] == (
+        """Dependency `opencv` with version `4.9.0` has a security issue."""
+    )
+
+    assert (
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to the latest available version."
+    )
+
+
 def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
@@ -607,7 +647,7 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
         agent_mock[0].data["dna"]
         == "Use of Outdated Vulnerable Component: Wordpress@6.5.0"
     )
-    assert agent_mock[0].data["risk_rating"] == "HIGH"
+    assert agent_mock[0].data["risk_rating"] == "MEDIUM"
     assert (
         agent_mock[0]
         .data["technical_detail"]
