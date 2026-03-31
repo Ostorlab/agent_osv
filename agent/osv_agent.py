@@ -262,6 +262,19 @@ def _prepare_vulnerability_location(
                 )
             )
 
+    elif message.selector.startswith("v3.fingerprint.file"):
+        package_name = message.data.get("package_name")
+        bundle_id = message.data.get("bundle_id")
+        if bundle_id is not None:
+            asset = ios_store.IOSStore(bundle_id=bundle_id)
+        elif package_name is not None:
+            asset = android_store.AndroidStore(package_name=package_name)
+        metadata.append(
+            vuln_mixin.VulnerabilityLocationMetadata(
+                metadata_type=vuln_mixin.MetadataType.FILE_PATH,
+                value=message.data.get("path") or "",
+            )
+        )
     else:
         package_name = message.data.get("android_metadata", {}).get("package_name")
         bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")

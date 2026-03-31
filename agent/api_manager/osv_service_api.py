@@ -33,9 +33,9 @@ class VulnData:
     stop=stop.stop_after_attempt(NUMBER_RETRIES),
     wait=wait.wait_fixed(WAIT_BETWEEN_RETRIES),
     retry=tenacity.retry_if_exception_type(),
-    retry_error_callback=lambda retry_state: retry_state.outcome.result()
-    if retry_state.outcome is not None
-    else None,
+    retry_error_callback=lambda retry_state: (
+        retry_state.outcome.result() if retry_state.outcome is not None else None
+    ),
 )
 def query_osv_api(
     package_name: str, version: str, ecosystem: str | None = None
