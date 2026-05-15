@@ -999,10 +999,11 @@ def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
         agent_mock[0].data["vulnerability_location"]["metadata"][0]["type"]
         == "FILE_PATH"
     )
-    assert agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"] == str(
-        lockfile_path
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+        == "package-lock.json"
     )
-    assert agent_mock[0].data["dna"].endswith(f": {lockfile_path}")
+    assert agent_mock[0].data["dna"].endswith(": package-lock.json")
 
 
 def testAgentOSV_whenRepositoryVolumeMissing_shouldNotCrash(
