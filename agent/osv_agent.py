@@ -406,7 +406,7 @@ class OSVAgent(
 
             relative_path = str(file_path.relative_to(repository_path))
 
-            if file_path.name in ("go.mod", "go.sum"):
+            if file_path.name.lower() in ("go.mod", "go.sum"):
                 scan_results = _run_osv_directory(str(file_path), content)
             else:
                 scan_results = _run_osv(file_path.name, content)
