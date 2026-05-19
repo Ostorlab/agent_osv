@@ -241,13 +241,12 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
 
 
 def _run_osv_existing_directory(existing_path: str) -> str | None:
-    """Perform OSV scan on the parent directory of an existing file.
+    """Perform OSV scan on the parent directory of a Go file already on disk.
 
-    This is used for repository assets where files are already mounted on disk.
+    Used for repository assets where files are mounted read-only; no writing needed.
     """
     try:
-        existing_path_obj = pathlib.Path(existing_path)
-        module_dir = existing_path_obj.parent.resolve()
+        module_dir = pathlib.Path(existing_path).parent.resolve()
         command = ["/usr/local/bin/osv-scanner", "--format", "json", str(module_dir)]
         output = subprocess.run(
             command, cwd=module_dir, capture_output=True, text=True, check=False
@@ -258,23 +257,6 @@ def _run_osv_existing_directory(existing_path: str) -> str | None:
     except (OSError, UnicodeDecodeError, ValueError) as e:
         logger.error("Error during existing directory scan: %s", e, exc_info=True)
         return None
-
-
-def _scan_dependency_file(
-    file_name: str,
-    content: bytes,
-    file_path: str | None = None,
-    existing_on_disk: bool = False,
-) -> str | None:
-    """Scan one dependency file and route Go files to directory scans."""
-    normalized_file_name = file_name.lower()
-    if normalized_file_name in ("go.mod", "go.sum"):
-        if file_path is None:
-            return None
-        if existing_on_disk:
-            return _run_osv_existing_directory(file_path)
-        return _run_osv_directory(file_path, content)
-    return _run_osv(file_name, content)
 
 
 def _get_file_type(content: bytes, path: str | None) -> str:
@@ -431,17 +413,11 @@ class OSVAgent(
             )
             return
 
-        supported_file_names_lower = [
-            supported_file.lower() for supported_file in SUPPORTED_OSV_FILE_NAMES
-        ]
+        supported_file_names_lower = {f.lower() for f in SUPPORTED_OSV_FILE_NAMES}
         found_supported_file = False
 
         for root, dirs, files in os.walk(repository_path, topdown=True):
-            dirs[:] = [
-                directory
-                for directory in dirs
-                if directory not in REPOSITORY_DIR_BLACKLIST
-            ]
+            dirs[:] = [d for d in dirs if d.lower() not in REPOSITORY_DIR_BLACKLIST]
 
             for file_name in files:
                 if file_name.lower() not in supported_file_names_lower:
@@ -459,12 +435,11 @@ class OSVAgent(
                     continue
 
                 relative_path = str(file_path.relative_to(repository_path))
-                scan_results = _scan_dependency_file(
-                    file_name=file_path.name,
-                    content=content,
-                    file_path=str(file_path),
-                    existing_on_disk=True,
-                )
+                if file_path.name.lower() in ("go.mod", "go.sum"):
+                    scan_results = _run_osv_existing_directory(str(file_path))
+                else:
+                    scan_results = _run_osv(file_path.name, content)
+
                 if scan_results is None:
                     continue
 
@@ -509,27 +484,21 @@ class OSVAgent(
 
         # Special handling for Go module files to preserve directory context
         if path is not None and path.endswith(("go.mod", "go.sum")) is True:
-            scan_results = _scan_dependency_file(
-                file_name=pathlib.Path(path).name,
-                content=content,
-                file_path=path,
-            )
-            if scan_results is None:
-                return
-
-            parsed_output = osv_output_handler.parse_osv_output(
-                scan_results, self.api_key
-            )
-            if len(parsed_output) > 0:
-                vulnerability_location = _prepare_vulnerability_location(message)
-                self._emit_vulnerabilities(
-                    output=parsed_output,
-                    vulnerability_location=vulnerability_location,
+            scan_results = _run_osv_directory(path, content)
+            if scan_results is not None:
+                parsed_output = osv_output_handler.parse_osv_output(
+                    scan_results, self.api_key
                 )
+                if len(parsed_output) > 0:
+                    vulnerability_location = _prepare_vulnerability_location(message)
+                    self._emit_vulnerabilities(
+                        output=parsed_output,
+                        vulnerability_location=vulnerability_location,
+                    )
             return
 
         for file_name in SUPPORTED_OSV_FILE_NAMES:
-            scan_results = _scan_dependency_file(file_name=file_name, content=content)
+            scan_results = _run_osv(file_name, content)
             if scan_results is not None:
                 logger.info(
                     "Found valid name for file: %s in path: %s", file_name, path

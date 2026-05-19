@@ -1028,7 +1028,7 @@ def testRunOsvExistingDirectory_whenGoModExists_scansParentDirectory(
     fake_go_osv_output: str,
     tmp_path: Any,
 ) -> None:
-    """Unit test for _run_osv_existing_directory using an already existing go.mod."""
+    """Unit test for _run_osv_existing_directory with a go.mod path."""
     workspace_dir = tmp_path / "workspace"
     workspace_dir.mkdir()
     go_mod_path = workspace_dir / "go.mod"
@@ -1044,7 +1044,9 @@ def testRunOsvExistingDirectory_whenGoModExists_scansParentDirectory(
     assert mock_subprocess_run.call_count == 1
     call_args = mock_subprocess_run.call_args
     assert call_args[0][0][0] == "/usr/local/bin/osv-scanner"
-    assert call_args[0][0][3] == str(workspace_dir)
+    assert call_args[0][0][1] == "--format"
+    assert call_args[0][0][2] == "json"
+    assert str(workspace_dir) in call_args[0][0][3]
 
 
 def testAgentOSV_whenRepositoryAssetHasGoMod_usesExistingDirectoryScan(
@@ -1055,11 +1057,12 @@ def testAgentOSV_whenRepositoryAssetHasGoMod_usesExistingDirectoryScan(
     mocker: plugin.MockerFixture,
     tmp_path: Any,
 ) -> None:
-    """Ensure repository go.mod is scanned from mounted directory without rewrite."""
+    """Ensure repository go.mod uses existing-directory scan rather than write-and-scan."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    go_mod_path = shared_code_path / "go.mod"
-    go_mod_path.write_text("module example.com/myapp\n", encoding="utf-8")
+    (shared_code_path / "go.mod").write_text(
+        "module example.com/myapp\n", encoding="utf-8"
+    )
 
     vuln_data = osv_output_handler.VulnData(
         package_name="github.com/gin-gonic/gin",
@@ -1074,16 +1077,16 @@ def testAgentOSV_whenRepositoryAssetHasGoMod_usesExistingDirectoryScan(
     )
 
     mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
-    directory_scan_mock = mocker.patch(
+    existing_scan_mock = mocker.patch(
         "agent.osv_agent._run_osv_existing_directory", return_value='{"results":[{}]}'
     )
-    run_osv_mock = mocker.patch("agent.osv_agent._run_osv")
+    directory_scan_mock = mocker.patch("agent.osv_agent._run_osv_directory")
     mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
 
     test_agent.process(repository_asset_message)
 
-    assert directory_scan_mock.call_count == 1
-    assert run_osv_mock.call_count == 0
+    assert existing_scan_mock.call_count == 1
+    assert directory_scan_mock.call_count == 0
     assert len(agent_mock) == 1
 
 
@@ -1095,17 +1098,14 @@ def testAgentOSV_whenRepositoryAssetHasBlacklistedDir_skipsNestedLockfiles(
     mocker: plugin.MockerFixture,
     tmp_path: Any,
 ) -> None:
-    """Ensure lockfiles under blacklisted directories are not scanned."""
+    """Ensure lockfiles under blacklisted dirs are ignored during repository scan."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
 
-    root_lockfile = shared_code_path / "package-lock.json"
-    root_lockfile.write_text('{"name": "demo-root"}', encoding="utf-8")
-
-    node_modules_dir = shared_code_path / "node_modules"
-    node_modules_dir.mkdir()
-    nested_lockfile = node_modules_dir / "package-lock.json"
-    nested_lockfile.write_text('{"name": "demo-nested"}', encoding="utf-8")
+    (shared_code_path / "package-lock.json").write_text("{}", encoding="utf-8")
+    blacklisted_dir = shared_code_path / "node_modules"
+    blacklisted_dir.mkdir()
+    (blacklisted_dir / "package-lock.json").write_text("{}", encoding="utf-8")
 
     vuln_data = osv_output_handler.VulnData(
         package_name="lodash",
@@ -1129,3 +1129,7 @@ def testAgentOSV_whenRepositoryAssetHasBlacklistedDir_skipsNestedLockfiles(
 
     assert scan_mock.call_count == 1
     assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+        == "package-lock.json"
+    )
