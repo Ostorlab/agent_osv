@@ -8,6 +8,7 @@ in_selectors:
   - v3.asset.file
   - v3.fingerprint.file
   - v3.asset.link
+  - v3.asset.repository
 out_selectors:
   - v3.report.vulnerability
 args:
@@ -16,3 +17,7 @@ args:
     description: "NVD api key."
 docker_file_path : Dockerfile
 docker_build_root : .
+volumes:
+  - name: repository_code
+    path: /code
+    read_only: true

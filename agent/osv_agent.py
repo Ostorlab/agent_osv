@@ -24,6 +24,7 @@ from agent.api_manager import osv_service_api
 from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
 from ostorlab.assets import domain_name
+from ostorlab.assets import repository as repository_asset
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
 
 
@@ -85,6 +86,24 @@ FILE_TYPE_BLACKLIST = (
     ".woff2",
     ".zip",
 )
+
+REPOSITORY_CODE_PATH = "/code"
+
+REPOSITORY_DIR_BLACKLIST = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tox",
+    "dist",
+    "build",
+}
 
 logging.basicConfig(
     format="%(message)s",
@@ -221,6 +240,25 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
         return None
 
 
+def _run_osv_existing_directory(existing_path: str) -> str | None:
+    """Perform OSV scan on the parent directory of a Go file already on disk.
+
+    Used for repository assets where files are mounted read-only; no writing needed.
+    """
+    try:
+        module_dir = pathlib.Path(existing_path).parent.resolve()
+        command = ["/usr/local/bin/osv-scanner", "--format", "json", str(module_dir)]
+        output = subprocess.run(
+            command, cwd=module_dir, capture_output=True, text=True, check=False
+        )
+        if _is_valid_osv_result(output.stdout) is True:
+            return output.stdout
+        return None
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        logger.error("Error during existing directory scan: %s", e, exc_info=True)
+        return None
+
+
 def _get_file_type(content: bytes, path: str | None) -> str:
     if path is None:
         mime = magic.from_buffer(content, mime=True)
@@ -236,6 +274,7 @@ def _get_file_type(content: bytes, path: str | None) -> str:
 
 def _prepare_vulnerability_location(
     message: m.Message,
+    path: str | None = None,
 ) -> vuln_mixin.VulnerabilityLocation | None:
     """
     Prepare the vulnerability location based on the message data.
@@ -247,10 +286,27 @@ def _prepare_vulnerability_location(
         VulnerabilityLocation if asset is found, None otherwise.
     """
     asset: (
-        domain_name.DomainName | ios_store.IOSStore | android_store.AndroidStore | None
+        domain_name.DomainName
+        | ios_store.IOSStore
+        | android_store.AndroidStore
+        | repository_asset.Repository
+        | None
     ) = None
     metadata = []
-    if message.selector == "v3.asset.link":
+    if message.selector == "v3.asset.repository":
+        asset = repository_asset.Repository(
+            repository_url=str(message.data.get("repository_url") or ""),
+            commit_hash=str(message.data.get("commit_hash") or ""),
+        )
+        if path is not None:
+            metadata.append(
+                vuln_mixin.VulnerabilityLocationMetadata(
+                    metadata_type=vuln_mixin.MetadataType.FILE_PATH,
+                    value=path,
+                )
+            )
+
+    elif message.selector == "v3.asset.link":
         url = message.data.get("url")
         url_netloc = parse.urlparse(url).netloc
         asset = domain_name.DomainName(name=str(url_netloc))
@@ -272,7 +328,7 @@ def _prepare_vulnerability_location(
         metadata.append(
             vuln_mixin.VulnerabilityLocationMetadata(
                 metadata_type=vuln_mixin.MetadataType.FILE_PATH,
-                value=message.data.get("path") or "",
+                value=path or message.data.get("path") or "",
             )
         )
     else:
@@ -285,7 +341,7 @@ def _prepare_vulnerability_location(
         metadata.append(
             vuln_mixin.VulnerabilityLocationMetadata(
                 metadata_type=vuln_mixin.MetadataType.FILE_PATH,
-                value=message.data.get("path") or "",
+                value=path or message.data.get("path") or "",
             )
         )
 
@@ -339,8 +395,80 @@ class OSVAgent(
                 vulnerability_location=vulnerability_location,
             )
 
+    def _process_repository_asset(self, message: m.Message) -> None:
+        """Process message of type v3.asset.repository by scanning shared /code volume."""
+        repository_url = message.data.get("repository_url")
+        commit_hash = message.data.get("commit_hash")
+        logger.info(
+            "received repository asset url=%s commit=%s",
+            repository_url,
+            commit_hash,
+        )
+
+        repository_path = pathlib.Path(REPOSITORY_CODE_PATH)
+        if repository_path.is_dir() is False:
+            logger.error(
+                "Repository path %s is not available. Ensure shared volume is mounted.",
+                REPOSITORY_CODE_PATH,
+            )
+            return
+
+        supported_file_names_lower = {f.lower() for f in SUPPORTED_OSV_FILE_NAMES}
+        found_supported_file = False
+
+        for root, dirs, files in os.walk(repository_path, topdown=True):
+            dirs[:] = [d for d in dirs if d.lower() not in REPOSITORY_DIR_BLACKLIST]
+
+            for file_name in files:
+                if file_name.lower() not in supported_file_names_lower:
+                    continue
+
+                found_supported_file = True
+                file_path = pathlib.Path(root) / file_name
+                relative_path = str(file_path.relative_to(repository_path))
+
+                if file_path.name.lower() in ("go.mod", "go.sum"):
+                    scan_results = _run_osv_existing_directory(str(file_path))
+                else:
+                    try:
+                        content = file_path.read_bytes()
+                    except OSError as error:
+                        logger.warning(
+                            "Failed to read repository file %s: %s", file_path, error
+                        )
+                        continue
+                    scan_results = _run_osv(file_path.name, content)
+
+                if scan_results is None:
+                    continue
+
+                parsed_output = osv_output_handler.parse_osv_output(
+                    scan_results, self.api_key
+                )
+                if len(parsed_output) == 0:
+                    continue
+
+                vulnerability_location = _prepare_vulnerability_location(
+                    message,
+                    path=relative_path,
+                )
+                self._emit_vulnerabilities(
+                    output=parsed_output,
+                    vulnerability_location=vulnerability_location,
+                    path=relative_path,
+                )
+
+        if found_supported_file is False:
+            logger.info(
+                "No supported dependency files found in %s", REPOSITORY_CODE_PATH
+            )
+
     def _process_asset(self, message: m.Message) -> None:
-        """Process message of type v3.asset.file."""
+        """Process message of type v3.asset.file, v3.asset.link, or v3.asset.repository."""
+        if message.selector == "v3.asset.repository":
+            self._process_repository_asset(message)
+            return
+
         content = _get_content(message)
         path = _get_path(message)
         if content is None or content == b"":

@@ -949,3 +949,187 @@ def testAgentOSV_whenGoModFileScanFails_doesNotEmit(
     test_agent.process(go_mod_file_message)
 
     assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure repository assets are scanned from shared volume and vulnerabilities are emitted."""
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    lockfile_path = shared_code_path / "package-lock.json"
+    lockfile_path.write_text('{"name": "demo"}', encoding="utf-8")
+
+    vuln_data = osv_output_handler.VulnData(
+        package_name="lodash",
+        package_version="4.7.11",
+        risk="HIGH",
+        description="Test vulnerability",
+        summary="Test vulnerability",
+        fixed_version="4.17.21",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
+    scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv", return_value='{"results":[{}]}'
+    )
+    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+
+    test_agent.process(repository_asset_message)
+
+    assert scan_mock.call_count == 1
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["repository_url"]
+        == "https://github.com/org/repo.git"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["commit_hash"]
+        == "a1a10cdbc6551ba359169a3033f193b7f8c1b95d"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["type"]
+        == "FILE_PATH"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+        == "package-lock.json"
+    )
+    assert agent_mock[0].data["dna"].endswith(": package-lock.json")
+
+
+def testAgentOSV_whenRepositoryVolumeMissing_shouldNotCrash(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure missing repository shared volume does not crash agent processing."""
+    missing_shared_path = tmp_path / "missing-code"
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(missing_shared_path))
+
+    test_agent.process(repository_asset_message)
+
+    assert len(agent_mock) == 0
+
+
+def testRunOsvExistingDirectory_whenGoModExists_scansParentDirectory(
+    mocker: plugin.MockerFixture,
+    fake_go_osv_output: str,
+    tmp_path: Any,
+) -> None:
+    """Unit test for _run_osv_existing_directory with a go.mod path."""
+    workspace_dir = tmp_path / "workspace"
+    workspace_dir.mkdir()
+    go_mod_path = workspace_dir / "go.mod"
+    go_mod_path.write_text("module example.com/myapp\n", encoding="utf-8")
+
+    mock_subprocess = mocker.Mock()
+    mock_subprocess.stdout = fake_go_osv_output
+    mock_subprocess_run = mocker.patch("subprocess.run", return_value=mock_subprocess)
+
+    result = osv_agent._run_osv_existing_directory(str(go_mod_path))
+
+    assert result == fake_go_osv_output
+    assert mock_subprocess_run.call_count == 1
+    call_args = mock_subprocess_run.call_args
+    assert call_args[0][0][0] == "/usr/local/bin/osv-scanner"
+    assert call_args[0][0][1] == "--format"
+    assert call_args[0][0][2] == "json"
+    assert str(workspace_dir) in call_args[0][0][3]
+
+
+def testAgentOSV_whenRepositoryAssetHasGoMod_usesExistingDirectoryScan(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure repository go.mod uses existing-directory scan rather than write-and-scan."""
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    (shared_code_path / "go.mod").write_text(
+        "module example.com/myapp\n", encoding="utf-8"
+    )
+
+    vuln_data = osv_output_handler.VulnData(
+        package_name="github.com/gin-gonic/gin",
+        package_version="1.9.0",
+        risk="HIGH",
+        description="Test vulnerability in gin",
+        summary="Test vulnerability",
+        fixed_version="1.9.1",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
+    existing_scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv_existing_directory", return_value='{"results":[{}]}'
+    )
+    directory_scan_mock = mocker.patch("agent.osv_agent._run_osv_directory")
+    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+
+    test_agent.process(repository_asset_message)
+
+    assert existing_scan_mock.call_count == 1
+    assert directory_scan_mock.call_count == 0
+    assert len(agent_mock) == 1
+
+
+def testAgentOSV_whenRepositoryAssetHasBlacklistedDir_skipsNestedLockfiles(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure lockfiles under blacklisted dirs are ignored during repository scan."""
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+
+    (shared_code_path / "package-lock.json").write_text("{}", encoding="utf-8")
+    blacklisted_dir = shared_code_path / "node_modules"
+    blacklisted_dir.mkdir()
+    (blacklisted_dir / "package-lock.json").write_text("{}", encoding="utf-8")
+
+    vuln_data = osv_output_handler.VulnData(
+        package_name="lodash",
+        package_version="4.7.11",
+        risk="HIGH",
+        description="Test vulnerability",
+        summary="Test vulnerability",
+        fixed_version="4.17.21",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
+    scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv", return_value='{"results":[{}]}'
+    )
+    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+
+    test_agent.process(repository_asset_message)
+
+    assert scan_mock.call_count == 1
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+        == "package-lock.json"
+    )

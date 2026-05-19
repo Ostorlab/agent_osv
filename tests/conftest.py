@@ -310,6 +310,17 @@ github.com/gin-gonic/gin v1.9.0/go.mod h1:test
 
 
 @pytest.fixture
+def repository_asset_message() -> message.Message:
+    """Creates a repository asset message for shared-volume repository scanning."""
+    selector = "v3.asset.repository"
+    msg_data = {
+        "repository_url": "https://github.com/org/repo.git",
+        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+    }
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
 def fake_go_osv_output() -> str:
     """Return fake OSV output for Go module scanning."""
     return json.dumps(
