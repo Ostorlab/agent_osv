@@ -425,19 +425,18 @@ class OSVAgent(
 
                 found_supported_file = True
                 file_path = pathlib.Path(root) / file_name
-
-                try:
-                    content = file_path.read_bytes()
-                except OSError as error:
-                    logger.warning(
-                        "Failed to read repository file %s: %s", file_path, error
-                    )
-                    continue
-
                 relative_path = str(file_path.relative_to(repository_path))
+
                 if file_path.name.lower() in ("go.mod", "go.sum"):
                     scan_results = _run_osv_existing_directory(str(file_path))
                 else:
+                    try:
+                        content = file_path.read_bytes()
+                    except OSError as error:
+                        logger.warning(
+                            "Failed to read repository file %s: %s", file_path, error
+                        )
+                        continue
                     scan_results = _run_osv(file_path.name, content)
 
                 if scan_results is None:
