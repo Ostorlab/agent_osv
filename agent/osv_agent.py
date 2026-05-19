@@ -251,7 +251,7 @@ def _run_osv_existing_directory(existing_path: str) -> str | None:
         output = subprocess.run(
             command, cwd=module_dir, capture_output=True, text=True, check=False
         )
-        if _is_valid_osv_result(output.stdout):
+        if _is_valid_osv_result(output.stdout) is True:
             return output.stdout
         return None
     except (OSError, UnicodeDecodeError, ValueError) as e:
