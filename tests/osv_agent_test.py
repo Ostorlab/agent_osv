@@ -561,7 +561,7 @@ def testAgentOSV_whenElfLibraryFingerprintMessage_shouldExcludeNpmEcosystemVulnz
     )
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@4.9.0"
+        == "Use of Outdated Vulnerable Component with 0 CVE: opencv@4.9.0"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[0].data["technical_detail"] == (
@@ -601,7 +601,7 @@ def testAgentOSV_whenAndroidLibraryFingerprintMessage_shouldEmitVulnWithVulnLoca
     }
     assert (
         agent_mock[0].data["dna"]
-        == "Use of Outdated Vulnerable Component: opencv@4.9.0: /workspace/go.mod"
+        == "Use of Outdated Vulnerable Component with 0 CVE: opencv@4.9.0: /workspace/go.mod"
     )
     assert agent_mock[0].data["risk_rating"] == "POTENTIALLY"
     assert agent_mock[0].data["technical_detail"] == (
