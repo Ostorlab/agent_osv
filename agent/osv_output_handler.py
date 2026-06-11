@@ -374,10 +374,11 @@ def construct_vuln(
                     f" has a security issue."
                 )
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}"
+            dna = f"Use of Outdated Vulnerable Component with 0 CVE: {vuln.package_name}@{vuln.package_version}{f': {path}' if path is not None else ''}"
         else:
             vuln.cves.sort(reverse=True)
             title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}"
-
+            dna = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}{f': {path}' if path is not None else ''}"
             if vuln.file_type is not None and vuln.file_name is not None:
                 description = (
                     f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
@@ -421,7 +422,7 @@ def construct_vuln(
                 targeted_by_nation_state=False,
                 recommendation=recommendation,
             ),
-            dna=f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}{f': {path}' if path is not None else ''}",
+            dna=dna,
             technical_detail=technical_detail,
             risk_rating=agent_report_vulnerability_mixin.RiskRating[
                 vuln.risk.upper()
