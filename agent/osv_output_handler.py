@@ -353,7 +353,6 @@ def construct_vuln(
         Vulnerability entry.
     """
     for vuln in parsed_vulns:
-
         if len(vuln.cves) == 0:
             continue
 
