@@ -388,10 +388,7 @@ def construct_vuln(
         osv_description = vuln.description.replace(
             "## Recommendation\n\n", "Recommendation: "
         )
-        if len(vuln.cves) == 0:
-            technical_detail += f"- **Description**:\n```\n{osv_description}\n```"
-        else:
-            technical_detail += f"- **Description**:\n{osv_description}\n"
+        technical_detail += f"- **Description**:\n{osv_description}\n"
 
         short_description = f"Dependency `{vuln.package_name}` with version `{vuln.package_version}` has a security issue."
 
