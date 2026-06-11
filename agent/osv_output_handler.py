@@ -353,6 +353,9 @@ def construct_vuln(
         Vulnerability entry.
     """
     for vuln in parsed_vulns:
+        if len(vuln.cves) == 0:
+            continue
+
         if vuln.fixed_version != "":
             recommendation = (
                 f"We recommend updating `{vuln.package_name}` to a version greater than or equal to "
@@ -361,34 +364,20 @@ def construct_vuln(
         else:
             recommendation = f"We recommend updating `{vuln.package_name}` to the latest available version."
 
-        if len(vuln.cves) == 0:
-            if vuln.file_type is not None and vuln.file_name is not None:
-                description = (
-                    f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f" found in the `{vuln.file_type}` `{vuln.file_name}` "
-                    f"has a security issue."
-                )
-            else:
-                description = (
-                    f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f" has a security issue."
-                )
-            title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}"
-        else:
-            vuln.cves.sort(reverse=True)
-            title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}"
+        vuln.cves.sort(reverse=True)
+        title = f"Use of Outdated Vulnerable Component: {vuln.package_name}@{vuln.package_version}: {', '.join(vuln.cves[:MAX_SHOWN_CVES])}"
 
-            if vuln.file_type is not None and vuln.file_name is not None:
-                description = (
-                    f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f" found in the `{vuln.file_type}` `{vuln.file_name}` "
-                    f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
-                )
-            else:
-                description = (
-                    f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
-                    f" has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
-                )
+        if vuln.file_type is not None and vuln.file_name is not None:
+            description = (
+                f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
+                f" found in the `{vuln.file_type}` `{vuln.file_name}` "
+                f"has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
+            )
+        else:
+            description = (
+                f"Dependency `{vuln.package_name}` with version `{vuln.package_version}`"
+                f" has a security issue.\nThe issue is identified by CVEs: `{', '.join(vuln.cves)}`."
+            )
 
         technical_detail = (
             f"#### Dependency `{vuln.package_name}`:\n"
@@ -399,10 +388,7 @@ def construct_vuln(
         osv_description = vuln.description.replace(
             "## Recommendation\n\n", "Recommendation: "
         )
-        if len(vuln.cves) == 0:
-            technical_detail += f"- **Description**:\n```\n{osv_description}\n```"
-        else:
-            technical_detail += f"- **Description**:\n{osv_description}\n"
+        technical_detail += f"- **Description**:\n{osv_description}\n"
 
         short_description = f"Dependency `{vuln.package_name}` with version `{vuln.package_version}` has a security issue."
 

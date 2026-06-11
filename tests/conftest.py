@@ -316,6 +316,7 @@ def repository_asset_message() -> message.Message:
     msg_data = {
         "repository_url": "https://github.com/org/repo.git",
         "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "provider": "GITHUB",
     }
     return message.Message.from_data(selector, data=msg_data)
 
