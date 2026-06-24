@@ -259,6 +259,25 @@ def _run_osv_existing_directory(existing_path: str) -> str | None:
         return None
 
 
+def _matched_supported_file_name(path: str | None) -> str | None:
+    """Return the canonical supported dependency file name matching the path basename.
+
+    Args:
+        path: The file path provided in the message.
+
+    Returns:
+        The canonical name from SUPPORTED_OSV_FILE_NAMES when the basename matches
+        (case-insensitive), otherwise None.
+    """
+    if path is None:
+        return None
+    basename = os.path.basename(path).lower()
+    for supported_name in SUPPORTED_OSV_FILE_NAMES:
+        if basename == supported_name.lower():
+            return supported_name
+    return None
+
+
 def _get_file_type(content: bytes, path: str | None) -> str:
     if path is None:
         mime = magic.from_buffer(content, mime=True)
@@ -497,7 +516,19 @@ class OSVAgent(
                     )
             return
 
-        for file_name in SUPPORTED_OSV_FILE_NAMES:
+        matched_file_name = _matched_supported_file_name(path)
+        if matched_file_name is not None:
+            # The message carries a known dependency file name, scan only that format.
+            candidate_file_names = [matched_file_name]
+        elif path is None:
+            # No file name to rely on, fall back to brute-forcing every format.
+            candidate_file_names = SUPPORTED_OSV_FILE_NAMES
+        else:
+            # A file name is present but is not a supported dependency file, skip it.
+            logger.info("File `%s` is not a supported dependency file, skipping.", path)
+            return
+
+        for file_name in candidate_file_names:
             scan_results = _run_osv(file_name, content)
             if scan_results is not None:
                 logger.info(
