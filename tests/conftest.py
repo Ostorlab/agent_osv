@@ -22,7 +22,9 @@ SVG_CONTENT = b"""<svg xmlns="http://www.w3.org/2000/svg" width="100" height="10
 def scan_message_file() -> message.Message:
     """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
-    content_path = f"{pathlib.Path(__file__).parent.parent}/tests/files/package_lock.json"
+    content_path = (
+        f"{pathlib.Path(__file__).parent.parent}/tests/files/package_lock.json"
+    )
     with open(content_path, "rb") as lock_file:
         msg_data = {
             "content": lock_file.read(),
