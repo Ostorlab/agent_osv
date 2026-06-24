@@ -51,6 +51,8 @@ SUPPORTED_OSV_FILE_NAMES = [
     "verification-metadata.xml",
 ]
 
+_SUPPORTED_FILE_NAMES_LOWER = {name.lower(): name for name in SUPPORTED_OSV_FILE_NAMES}
+
 OSV_ECOSYSTEM_MAPPING = {
     "JAVASCRIPT_LIBRARY": ["npm"],
     "JAVA_LIBRARY": ["Maven"],
@@ -121,9 +123,7 @@ def _get_content_url(message: m.Message) -> bytes | None:
         return None
     parsed_url = parse.urlparse(url)
     filename = os.path.basename(parsed_url.path)
-    if filename.lower() in [
-        support_lock.lower() for support_lock in SUPPORTED_OSV_FILE_NAMES
-    ]:
+    if filename.lower() in _SUPPORTED_FILE_NAMES_LOWER:
         logger.debug("Found matching path %s", url)
         response = requests.get(url, timeout=60)
         logger.debug("Collected response %s", response.text)
@@ -272,10 +272,7 @@ def _matched_supported_file_name(path: str | None) -> str | None:
     if path is None:
         return None
     basename = os.path.basename(path).lower()
-    for supported_name in SUPPORTED_OSV_FILE_NAMES:
-        if basename == supported_name.lower():
-            return supported_name
-    return None
+    return _SUPPORTED_FILE_NAMES_LOWER.get(basename)
 
 
 def _get_file_type(content: bytes, path: str | None) -> str:
@@ -433,14 +430,13 @@ class OSVAgent(
             )
             return
 
-        supported_file_names_lower = {f.lower() for f in SUPPORTED_OSV_FILE_NAMES}
         found_supported_file = False
 
         for root, dirs, files in os.walk(repository_path, topdown=True):
             dirs[:] = [d for d in dirs if d.lower() not in REPOSITORY_DIR_BLACKLIST]
 
             for file_name in files:
-                if file_name.lower() not in supported_file_names_lower:
+                if file_name.lower() not in _SUPPORTED_FILE_NAMES_LOWER:
                     continue
 
                 found_supported_file = True
