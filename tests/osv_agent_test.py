@@ -249,6 +249,29 @@ def testAgentOSV_whenAnalysisRunsWithNoFileName_shouldBruteForceTheName(
     assert len(agent_mock) == 1
 
 
+def testAgentOSV_whenFileNameIsNotSupported_shouldNotScanNorEmit(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A file carrying a non-dependency name (e.g. a markdown note) must be skipped
+    instead of being brute-forced against every supported format."""
+    subprocess_mock = mocker.patch("agent.osv_agent._run_command")
+    message_markdown_file = message.Message.from_data(
+        "v3.asset.file",
+        data={
+            "content": b"# Notes\nsome documentation mentioning requirements.txt",
+            "path": "/workspace/notes/reconnaissance-template-inventory.md",
+        },
+    )
+
+    test_agent.process(message_markdown_file)
+
+    assert subprocess_mock.call_count == 0
+    assert len(agent_mock) == 0
+
+
 def testAgentOSV_withContentUrl_shouldDownloadFileContentAndBrutForceTheFileName(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
@@ -644,7 +667,7 @@ def testAgentOSV_whenIosMetadataWithBundleId_prepareVulnerabilityLocation(
     selector = "v3.asset.file"
     msg_data = {
         "content": b"some file content",
-        "path": "/tmp/path/file.txt",
+        "path": "/tmp/path/requirements.txt",
         "ios_metadata": {"bundle_id": "com.example.app"},
     }
     msg = message.Message.from_data(selector, data=msg_data)
@@ -672,7 +695,7 @@ def testAgentOSV_whenIosMetadataWithBundleId_prepareVulnerabilityLocation(
         .data.get("vulnerability_location", {})
         .get("metadata", [{}])[0]
         .get("value")
-        == "/tmp/path/file.txt"
+        == "/tmp/path/requirements.txt"
     )
 
 
@@ -701,7 +724,7 @@ def testAgentOSV_whenAndroidMetadataWithPackageName_prepareVulnerabilityLocation
     selector = "v3.asset.file"
     msg_data = {
         "content": b"some file content",
-        "path": "/tmp/path/file.txt",
+        "path": "/tmp/path/requirements.txt",
         "android_metadata": {"package_name": "com.example.app"},
     }
     msg = message.Message.from_data(selector, data=msg_data)
@@ -729,7 +752,7 @@ def testAgentOSV_whenAndroidMetadataWithPackageName_prepareVulnerabilityLocation
         .data.get("vulnerability_location", {})
         .get("metadata", [{}])[0]
         .get("value")
-        == "/tmp/path/file.txt"
+        == "/tmp/path/requirements.txt"
     )
 
 
