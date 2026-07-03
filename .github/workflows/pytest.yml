@@ -39,4 +39,4 @@ jobs:
     - name: Runnning tests with pytest.
       run: |
         
-        pytest -m "not docker" --cov-report=term-missing
+        pytest -m "not docker"
