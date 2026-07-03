@@ -952,6 +952,10 @@ def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
         == "a1a10cdbc6551ba359169a3033f193b7f8c1b95d"
     )
     assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["provider"]
+        == "GITHUB"
+    )
+    assert (
         agent_mock[0].data["vulnerability_location"]["metadata"][0]["type"]
         == "FILE_PATH"
     )
@@ -960,6 +964,51 @@ def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
         == "package-lock.json"
     )
     assert agent_mock[0].data["dna"].endswith(": package-lock.json")
+
+
+def testAgentOSV_whenRepositoryAssetMissingProvider_shouldDefaultToGit(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure repository assets missing a provider default to GIT."""
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    lockfile_path = shared_code_path / "package-lock.json"
+    lockfile_path.write_text('{"name": "demo"}', encoding="utf-8")
+
+    vuln_data = osv_output_handler.VulnData(
+        package_name="lodash",
+        package_version="4.7.11",
+        risk="HIGH",
+        description="Test vulnerability",
+        summary="Test vulnerability",
+        fixed_version="4.17.21",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
+    mocker.patch("agent.osv_agent._run_osv", return_value='{"results":[{}]}')
+    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+
+    msg_data = {
+        "repository_url": "https://github.com/org/repo.git",
+        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+    }
+    missing_provider_msg = message.Message.from_data(
+        "v3.asset.repository", data=msg_data
+    )
+
+    test_agent.process(missing_provider_msg)
+
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["provider"] == "GIT"
+    )
 
 
 def testAgentOSV_whenRepositoryVolumeMissing_shouldNotCrash(
