@@ -313,7 +313,7 @@ def _prepare_vulnerability_location(
         asset = repository_asset.Repository(
             repository_url=str(message.data.get("repository_url") or ""),
             commit_hash=str(message.data.get("commit_hash") or ""),
-            provider=str(message.data.get("provider") or ""),
+            provider=str(message.data.get("provider") or "GIT"),
         )
         if path is not None:
             metadata.append(
