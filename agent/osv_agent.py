@@ -91,6 +91,13 @@ FILE_TYPE_BLACKLIST = (
 
 REPOSITORY_CODE_PATH = "/code"
 
+# Selectors whose assets are scanned from the shared /code volume, treated
+# identically to a repository asset.
+REPOSITORY_SELECTORS = (
+    "v3.asset.repository",
+    "v3.asset.file.repository_archive",
+)
+
 REPOSITORY_DIR_BLACKLIST = {
     ".git",
     ".hg",
@@ -309,7 +316,7 @@ def _prepare_vulnerability_location(
         | None
     ) = None
     metadata = []
-    if message.selector == "v3.asset.repository":
+    if message.selector in REPOSITORY_SELECTORS:
         asset = repository_asset.Repository(
             repository_url=str(message.data.get("repository_url") or ""),
             commit_hash=str(message.data.get("commit_hash") or ""),
@@ -413,7 +420,7 @@ class OSVAgent(
             )
 
     def _process_repository_asset(self, message: m.Message) -> None:
-        """Process message of type v3.asset.repository by scanning shared /code volume."""
+        """Process a repository or repository_archive asset by scanning the shared /code volume."""
         repository_url = message.data.get("repository_url")
         commit_hash = message.data.get("commit_hash")
         logger.info(
@@ -480,8 +487,9 @@ class OSVAgent(
             )
 
     def _process_asset(self, message: m.Message) -> None:
-        """Process message of type v3.asset.file, v3.asset.link, or v3.asset.repository."""
-        if message.selector == "v3.asset.repository":
+        """Process message of type v3.asset.file, v3.asset.link, v3.asset.repository,
+        or v3.asset.file.repository_archive."""
+        if message.selector in REPOSITORY_SELECTORS:
             self._process_repository_asset(message)
             return
 

@@ -989,6 +989,63 @@ def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
     assert agent_mock[0].data["dna"].endswith(": package-lock.json")
 
 
+def testAgentOSV_whenRepositoryArchiveAsset_shouldScanSharedVolumeAndEmitVuln(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_archive_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Ensure repository_archive assets are scanned from shared volume like repository assets."""
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    lockfile_path = shared_code_path / "package-lock.json"
+    lockfile_path.write_text('{"name": "demo"}', encoding="utf-8")
+    vuln_data = osv_output_handler.VulnData(
+        package_name="lodash",
+        package_version="4.7.11",
+        risk="HIGH",
+        description="Test vulnerability",
+        summary="Test vulnerability",
+        fixed_version="4.17.21",
+        cvss_v3_vector=None,
+        references=[],
+        cves=["CVE-2024-1234"],
+    )
+    mocker.patch("agent.osv_agent.REPOSITORY_CODE_PATH", str(shared_code_path))
+    scan_mock = mocker.patch(
+        "agent.osv_agent._run_osv", return_value='{"results":[{}]}'
+    )
+    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+
+    test_agent.process(repository_archive_asset_message)
+
+    assert scan_mock.call_count == 1
+    assert len(agent_mock) == 1
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["repository_url"]
+        == "https://github.com/org/repo.git"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["commit_hash"]
+        == "a1a10cdbc6551ba359169a3033f193b7f8c1b95d"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["repository"]["provider"]
+        == "GITHUB"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["type"]
+        == "FILE_PATH"
+    )
+    assert (
+        agent_mock[0].data["vulnerability_location"]["metadata"][0]["value"]
+        == "package-lock.json"
+    )
+    assert agent_mock[0].data["dna"].endswith(": package-lock.json")
+
+
 def testAgentOSV_whenRepositoryAssetMissingProvider_shouldDefaultToGit(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
