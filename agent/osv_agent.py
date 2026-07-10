@@ -91,8 +91,6 @@ FILE_TYPE_BLACKLIST = (
 
 REPOSITORY_CODE_PATH = "/code"
 
-# Selectors whose assets are scanned from the shared /code volume, treated
-# identically to a repository asset.
 REPOSITORY_SELECTORS = (
     "v3.asset.repository",
     "v3.asset.file.repository_archive",
