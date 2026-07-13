@@ -25,6 +25,7 @@ from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
 from ostorlab.assets import domain_name
 from ostorlab.assets import repository as repository_asset
+from ostorlab.assets import repository_archive as repository_archive_asset
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
 
 
@@ -90,11 +91,8 @@ FILE_TYPE_BLACKLIST = (
 )
 
 REPOSITORY_CODE_PATH = "/code"
-
-REPOSITORY_SELECTORS = (
-    "v3.asset.repository",
-    "v3.asset.file.repository_archive",
-)
+REPOSITORY_SELECTOR = "v3.asset.repository"
+REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
 REPOSITORY_DIR_BLACKLIST = {
     ".git",
@@ -311,15 +309,30 @@ def _prepare_vulnerability_location(
         | ios_store.IOSStore
         | android_store.AndroidStore
         | repository_asset.Repository
+        | repository_archive_asset.RepositoryArchive
         | None
     ) = None
     metadata = []
-    if message.selector in REPOSITORY_SELECTORS:
+    if message.selector == REPOSITORY_SELECTOR:
         asset = repository_asset.Repository(
             repository_url=str(message.data.get("repository_url") or ""),
             commit_hash=str(message.data.get("commit_hash") or ""),
             provider=str(message.data.get("provider") or "GIT"),
         )
+        if path is not None:
+            metadata.append(
+                vuln_mixin.VulnerabilityLocationMetadata(
+                    metadata_type=vuln_mixin.MetadataType.FILE_PATH,
+                    value=path,
+                )
+            )
+
+    elif message.selector == REPOSITORY_ARCHIVE_SELECTOR:
+        content_url = message.data.get("content_url")
+        if content_url is not None:
+            asset = repository_archive_asset.RepositoryArchive(
+                content_url=str(content_url)
+            )
         if path is not None:
             metadata.append(
                 vuln_mixin.VulnerabilityLocationMetadata(
@@ -418,15 +431,30 @@ class OSVAgent(
             )
 
     def _process_repository_asset(self, message: m.Message) -> None:
-        """Process a repository or repository_archive asset by scanning the shared /code volume."""
-        repository_url = message.data.get("repository_url")
-        commit_hash = message.data.get("commit_hash")
+        """Process message of type v3.asset.repository by scanning the shared /code volume."""
         logger.info(
             "received repository asset url=%s commit=%s",
-            repository_url,
-            commit_hash,
+            message.data.get("repository_url"),
+            message.data.get("commit_hash"),
         )
 
+        self._scan_repository_code(message)
+
+    def _process_repository_archive_asset(self, message: m.Message) -> None:
+        """Process message of type v3.asset.file.repository_archive by scanning the shared /code volume.
+
+        The archive carries no repository URL, commit hash nor provider, it is identified by its content URL.
+        """
+        logger.info(
+            "received repository archive asset content_url=%s path=%s",
+            message.data.get("content_url"),
+            message.data.get("path"),
+        )
+
+        self._scan_repository_code(message)
+
+    def _scan_repository_code(self, message: m.Message) -> None:
+        """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
         repository_path = pathlib.Path(REPOSITORY_CODE_PATH)
         if repository_path.is_dir() is False:
             logger.error(
@@ -485,12 +513,16 @@ class OSVAgent(
             )
 
     def _process_asset(self, message: m.Message) -> None:
-        """Process message of type v3.asset.file, v3.asset.link, v3.asset.repository,
-        or v3.asset.file.repository_archive."""
-        if message.selector in REPOSITORY_SELECTORS:
+        """Dispatch the asset message to the handler of its type."""
+        if message.selector == REPOSITORY_SELECTOR:
             self._process_repository_asset(message)
-            return
+        elif message.selector == REPOSITORY_ARCHIVE_SELECTOR:
+            self._process_repository_archive_asset(message)
+        else:
+            self._process_file_asset(message)
 
+    def _process_file_asset(self, message: m.Message) -> None:
+        """Process message of type v3.asset.file or v3.asset.link."""
         content = _get_content(message)
         path = _get_path(message)
         if content is None or content == b"":
