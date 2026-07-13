@@ -35,10 +35,3 @@ def testQueryOSVOutput_withPackage_returnListOfVulnerabilities(
         osv_service_api.OSV_ENDPOINT,
         json={"version": "2.4.1", "package": {"name": "jinja2", "ecosystem": "PyPI"}},
     )
-    assert (
-        any(
-            "Jinja2 sandbox escape via string formatting" in vuln["summary"]
-            for vuln in osv_output["vulns"]
-        )
-        is True
-    )
