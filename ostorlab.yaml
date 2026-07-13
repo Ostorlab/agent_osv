@@ -9,6 +9,7 @@ in_selectors:
   - v3.fingerprint.file
   - v3.asset.link
   - v3.asset.repository
+  - v3.asset.file.repository_archive
 out_selectors:
   - v3.report.vulnerability
 args:
