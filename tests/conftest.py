@@ -10,6 +10,7 @@ import pytest
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message
 from ostorlab.runtimes import definitions as runtime_definitions
+from ostorlab.utils import definitions as utils_definitions
 
 from agent import osv_agent
 
@@ -87,11 +88,11 @@ def test_agent_with_exclude_paths(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[
-                {
-                    "name": "exclude_paths",
-                    "type": "array",
-                    "value": [r"^/workspace(/|$)"],
-                }
+                utils_definitions.Arg(
+                    name="exclude_paths",
+                    type="array",
+                    value=json.dumps([r"^/workspace(/|$)"]).encode(),
+                )
             ],
             healthcheck_port=random.randint(5000, 6000),
             redis_url="redis://guest:guest@localhost:6379",
