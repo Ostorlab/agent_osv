@@ -120,6 +120,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _should_exclude_path(path: str | None, exclude_paths: list[str] | None) -> bool:
+    """Report whether a file path starts with one of the excluded prefixes.
+
+    Args:
+        path: The file path reported in the message, or None.
+        exclude_paths: List of path prefixes to match against the path.
+
+    Returns:
+        True if the path starts with at least one prefix and should be skipped,
+        False otherwise.
+    """
+    if path is None or exclude_paths is None or len(exclude_paths) == 0:
+        return False
+    for prefix in exclude_paths:
+        if path.startswith(prefix) is True:
+            logger.info(
+                "Skipping file %s: path matches exclude prefix %r.", path, prefix
+            )
+            return True
+    return False
+
+
 def _get_content_url(message: m.Message) -> bytes | None:
     url = message.data.get("url")
     if url is None:
@@ -525,6 +547,8 @@ class OSVAgent(
         """Process message of type v3.asset.file or v3.asset.link."""
         content = _get_content(message)
         path = _get_path(message)
+        if _should_exclude_path(path, self.args.get("exclude_paths")) is True:
+            return
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return
