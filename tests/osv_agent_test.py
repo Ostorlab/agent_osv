@@ -191,7 +191,7 @@ def testAgentOSV_whenAnalysisRunsWithInvalidFile_notProcessMessage(
 
 
 def testAgentOSV_whenFilePathIsExcluded_notProcessMessage(
-    test_agent_with_exclude_paths: osv_agent.OSVAgent,
+    test_agent_with_exclude_path_regexes: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     workspace_scan_message_file: message.Message,
@@ -200,7 +200,7 @@ def testAgentOSV_whenFilePathIsExcluded_notProcessMessage(
     """A file whose path matches an exclude pattern is skipped: no scan, no emitted message."""
     subprocess_mock = mocker.patch("agent.osv_agent._run_command")
 
-    test_agent_with_exclude_paths.process(workspace_scan_message_file)
+    test_agent_with_exclude_path_regexes.process(workspace_scan_message_file)
 
     assert subprocess_mock.call_count == 0
     assert len(agent_mock) == 0

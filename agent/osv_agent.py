@@ -121,24 +121,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _should_exclude_path(path: str | None, exclude_paths: list[str] | None) -> bool:
+def _should_exclude_path(
+    path: str | None, exclude_path_regexes: list[str] | None
+) -> bool:
     """Report whether a file path matches one of the exclusion regex patterns.
 
     Args:
         path: The file path reported in the message, or None.
-        exclude_paths: List of regex patterns to match against the path.
+        exclude_path_regexes: List of regex patterns to match against the path.
 
     Returns:
         True if the path matches at least one pattern and should be skipped,
         False otherwise.
     """
-    if path is None or exclude_paths is None or len(exclude_paths) == 0:
+    if path is None or exclude_path_regexes is None or len(exclude_path_regexes) == 0:
         return False
-    for pattern in exclude_paths:
+    for pattern in exclude_path_regexes:
         try:
             matched = re.search(pattern, path)
         except re.error as e:
-            logger.warning("Invalid exclude_paths regex %r: %s", pattern, e)
+            logger.warning("Invalid exclude_path_regexes regex %r: %s", pattern, e)
             continue
         if matched is not None:
             logger.info(
@@ -551,10 +553,10 @@ class OSVAgent(
 
     def _process_file_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file or v3.asset.link."""
-        content = _get_content(message)
         path = _get_path(message)
-        if _should_exclude_path(path, self.args.get("exclude_paths")) is True:
+        if _should_exclude_path(path, self.args.get("exclude_path_regexes")) is True:
             return
+        content = _get_content(message)
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return

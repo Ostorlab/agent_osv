@@ -16,7 +16,7 @@ args:
   - name: "nvd_api_key"
     type: "string"
     description: "NVD api key."
-  - name: "exclude_paths"
+  - name: "exclude_path_regexes"
     type: "array"
     description: "List of regex patterns; files whose path matches any pattern are skipped."
 docker_file_path : Dockerfile
