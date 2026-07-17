@@ -10,6 +10,7 @@ import pytest
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message
 from ostorlab.runtimes import definitions as runtime_definitions
+from ostorlab.utils import definitions as utils_definitions
 
 from agent import osv_agent
 
@@ -65,6 +66,38 @@ def invalid_scan_message_file() -> message.Message:
     selector = "v3.asset.file"
     msg_data = {"content": b"", "path": "test.java"}
     return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def workspace_scan_message_file() -> message.Message:
+    """Creates a v3.asset.file message whose path is under the excluded /workspace tree."""
+    selector = "v3.asset.file"
+    msg_data = {"content": b'{"name": "test"}', "path": "/workspace/package-lock.json"}
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture()
+def test_agent_with_exclude_path_regexes(
+    agent_persist_mock: Dict[str | bytes, str | bytes],
+) -> osv_agent.OSVAgent:
+    """OSV agent configured to exclude files under /workspace."""
+    with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
+        definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
+        settings = runtime_definitions.AgentSettings(
+            key="agent/ostorlab/osv",
+            bus_url="NA",
+            bus_exchange_topic="NA",
+            args=[
+                utils_definitions.Arg(
+                    name="exclude_path_regexes",
+                    type="array",
+                    value=json.dumps([r"^/workspace(/|$)"]).encode(),
+                )
+            ],
+            healthcheck_port=random.randint(5000, 6000),
+            redis_url="redis://guest:guest@localhost:6379",
+        )
+        return osv_agent.OSVAgent(definition, settings)
 
 
 @pytest.fixture

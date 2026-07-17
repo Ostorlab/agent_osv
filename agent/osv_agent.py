@@ -3,6 +3,7 @@
 import json
 import logging
 import pathlib
+import re
 import subprocess
 import typing
 import os
@@ -118,6 +119,35 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
+
+
+def _should_exclude_path(
+    path: str | None, exclude_path_regexes: list[str] | None
+) -> bool:
+    """Report whether a file path matches one of the exclusion regex patterns.
+
+    Args:
+        path: The file path reported in the message, or None.
+        exclude_path_regexes: List of regex patterns to match against the path.
+
+    Returns:
+        True if the path matches at least one pattern and should be skipped,
+        False otherwise.
+    """
+    if path is None or exclude_path_regexes is None or len(exclude_path_regexes) == 0:
+        return False
+    for pattern in exclude_path_regexes:
+        try:
+            matched = re.search(pattern, path)
+        except re.error as e:
+            logger.warning("Invalid exclude_path_regexes regex %r: %s", pattern, e)
+            continue
+        if matched is not None:
+            logger.info(
+                "Skipping file %s: path matches exclude pattern %r.", path, pattern
+            )
+            return True
+    return False
 
 
 def _get_content_url(message: m.Message) -> bytes | None:
@@ -523,8 +553,10 @@ class OSVAgent(
 
     def _process_file_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file or v3.asset.link."""
-        content = _get_content(message)
         path = _get_path(message)
+        if _should_exclude_path(path, self.args.get("exclude_path_regexes")) is True:
+            return
+        content = _get_content(message)
         if content is None or content == b"":
             logger.warning("Message file content is empty.")
             return
