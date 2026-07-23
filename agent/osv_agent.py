@@ -21,6 +21,7 @@ from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
 from agent import osv_output_handler
+from agent import utils
 from agent.api_manager import osv_service_api
 from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
@@ -91,7 +92,7 @@ FILE_TYPE_BLACKLIST = (
     ".zip",
 )
 
-REPOSITORY_CODE_PATH = "/code"
+ASSETS_CODE_PATH = "/code"
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -462,34 +463,55 @@ class OSVAgent(
 
     def _process_repository_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.repository by scanning the shared /code volume."""
+        repository_url: str | None = message.data.get("repository_url")
+        commit_hash: str | None = message.data.get("commit_hash")
         logger.info(
             "received repository asset url=%s commit=%s",
-            message.data.get("repository_url"),
-            message.data.get("commit_hash"),
+            repository_url,
+            commit_hash,
         )
 
-        self._scan_repository_code(message)
+        asset_directory: str | None = None
+        if repository_url is not None and commit_hash is not None:
+            asset_directory = utils.build_repository_asset_directory(
+                repository_url, commit_hash
+            )
+
+        self._scan_repository_code(message, asset_directory)
 
     def _process_repository_archive_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file.repository_archive by scanning the shared /code volume.
 
         The archive carries no repository URL, commit hash nor provider, it is identified by its content URL.
         """
+        content_url: str | None = message.data.get("content_url")
         logger.info(
             "received repository archive asset content_url=%s path=%s",
-            message.data.get("content_url"),
+            content_url,
             message.data.get("path"),
         )
 
-        self._scan_repository_code(message)
+        asset_directory: str | None = None
+        if content_url is not None:
+            asset_directory = utils.build_repository_archive_asset_directory(
+                content_url
+            )
 
-    def _scan_repository_code(self, message: m.Message) -> None:
+        self._scan_repository_code(message, asset_directory)
+
+    def _scan_repository_code(
+        self, message: m.Message, asset_directory: str | None = None
+    ) -> None:
         """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
-        repository_path = pathlib.Path(REPOSITORY_CODE_PATH)
+        repository_code_path: str = ASSETS_CODE_PATH
+        if asset_directory is not None and len(asset_directory) > 0:
+            repository_code_path = os.path.join(ASSETS_CODE_PATH, asset_directory)
+
+        repository_path = pathlib.Path(repository_code_path)
         if repository_path.is_dir() is False:
             logger.error(
                 "Repository path %s is not available. Ensure shared volume is mounted.",
-                REPOSITORY_CODE_PATH,
+                repository_code_path,
             )
             return
 
@@ -539,7 +561,7 @@ class OSVAgent(
 
         if found_supported_file is False:
             logger.info(
-                "No supported dependency files found in %s", REPOSITORY_CODE_PATH
+                "No supported dependency files found in %s", repository_code_path
             )
 
     def _process_asset(self, message: m.Message) -> None:
