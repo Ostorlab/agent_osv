@@ -93,6 +93,7 @@ FILE_TYPE_BLACKLIST = (
 )
 
 ASSETS_CODE_PATH = "/code"
+ASSET_DIRECTORY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -472,9 +473,20 @@ class OSVAgent(
         )
 
         asset_directory: str | None = None
-        if repository_url is not None and commit_hash is not None:
+        if (
+            repository_url is not None
+            and repository_url != ""
+            and commit_hash is not None
+            and commit_hash != ""
+        ):
             asset_directory = utils.build_repository_asset_directory(
                 repository_url, commit_hash
+            )
+        else:
+            logger.warning(
+                "Repository asset is missing repository_url or commit_hash; "
+                "falling back to `%s`.",
+                ASSETS_CODE_PATH,
             )
 
         self._scan_repository_code(message, asset_directory)
@@ -492,9 +504,14 @@ class OSVAgent(
         )
 
         asset_directory: str | None = None
-        if content_url is not None:
+        if content_url is not None and content_url != "":
             asset_directory = utils.build_repository_archive_asset_directory(
                 content_url
+            )
+        else:
+            logger.warning(
+                "Repository archive asset is missing content_url; falling back to `%s`.",
+                ASSETS_CODE_PATH,
             )
 
         self._scan_repository_code(message, asset_directory)
@@ -505,7 +522,28 @@ class OSVAgent(
         """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
         repository_code_path: str = ASSETS_CODE_PATH
         if asset_directory is not None and len(asset_directory) > 0:
-            repository_code_path = os.path.join(ASSETS_CODE_PATH, asset_directory)
+            if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
+                logger.error(
+                    "Refusing to scan invalid repository asset directory `%s`.",
+                    asset_directory,
+                )
+                return
+
+            resolved_code_path = os.path.realpath(
+                os.path.join(ASSETS_CODE_PATH, asset_directory)
+            )
+            resolved_assets_path = os.path.realpath(ASSETS_CODE_PATH)
+            if (
+                os.path.commonpath([resolved_assets_path, resolved_code_path])
+                != resolved_assets_path
+            ):
+                logger.error(
+                    "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                    ASSETS_CODE_PATH,
+                    asset_directory,
+                )
+                return
+            repository_code_path = resolved_code_path
 
         repository_path = pathlib.Path(repository_code_path)
         if repository_path.is_dir() is False:

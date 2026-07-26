@@ -1386,3 +1386,86 @@ def testProcess_whenRepositoryArchiveAssetWithQueryParams_ignoresQuery(
 
     assert scan_mock.call_count == 1
     assert scan_mock.call_args.args[1] == b"{}"
+
+
+def testProcess_whenRepositoryAssetDirectoryEscapesAssetsCodePath_shouldNotScan(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Repository asset directories outside /code are rejected before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    escape_message = message.Message.from_data(
+        "v3.asset.repository",
+        data={
+            "repository_url": "https://github.com/org/repo.git",
+            "commit_hash": "../secret",
+            "provider": "GITHUB",
+        },
+    )
+
+    scan_mock = mocker.patch("agent.osv_agent._run_osv")
+    mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
+
+    test_agent.process(escape_message)
+
+    scan_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldNotScan(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Repository archive asset directories outside /code are rejected before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    escape_message = message.Message.from_data(
+        "v3.asset.file.repository_archive",
+        data={
+            "content_url": "https://example.com/uploads/..",
+            "path": "repo-main.zip",
+        },
+    )
+
+    scan_mock = mocker.patch("agent.osv_agent._run_osv")
+    mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
+
+    test_agent.process(escape_message)
+
+    scan_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetMissingRepositoryUrl_fallsBackToFullVolumeScan(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """A repository asset missing repository_url warns and falls back to scanning the full /code volume."""
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    (shared_code_path / "package-lock.json").write_text("{}", encoding="utf-8")
+    missing_url_message = message.Message.from_data(
+        "v3.asset.repository",
+        data={"repository_url": "", "commit_hash": "abc123", "provider": "GITHUB"},
+    )
+
+    scan_mock = mocker.patch("agent.osv_agent._run_osv", return_value='{"results":[]}')
+    mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
+
+    test_agent.process(missing_url_message)
+
+    assert scan_mock.call_count == 1
