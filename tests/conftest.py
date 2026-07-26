@@ -2,7 +2,6 @@
 
 import json
 import pathlib
-import random
 import subprocess
 from collections.abc import Callable
 from typing import Any
@@ -95,7 +94,7 @@ def test_agent_with_exclude_path_regexes(
                     value=json.dumps([r"^/workspace(/|$)"]).encode(),
                 )
             ],
-            healthcheck_port=random.randint(5000, 6000),
+            healthcheck_port=0,
             redis_url="redis://guest:guest@localhost:6379",
         )
         return osv_agent.OSVAgent(definition, settings)
@@ -166,7 +165,7 @@ def test_agent(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[],
-            healthcheck_port=random.randint(5000, 6000),
+            healthcheck_port=0,
             redis_url="redis://guest:guest@localhost:6379",
         )
         return osv_agent.OSVAgent(definition, settings)
