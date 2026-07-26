@@ -1,16 +1,14 @@
 """Unittests for OSV agent."""
 
 import subprocess
-from typing import Callable, Any
+from collections.abc import Callable
+from typing import Any
 
 import requests_mock as rq_mock
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
-from agent import cve_service_api
-from agent import osv_agent
-from agent import osv_output_handler
-from agent import utils
+from agent import cve_service_api, osv_agent, osv_output_handler, utils
 from agent.api_manager import osv_service_api
 
 
@@ -419,7 +417,6 @@ def testAgentOSV_whenMultipleVulns_groupByFingerprint(
         def __init__(self, cve_id: str, api_key: str | None = None):
             del cve_id
             del api_key
-            pass
 
     mocker.patch("agent.cve_service_api.get_cve_data_from_api", side_effect=MockCveData)
 

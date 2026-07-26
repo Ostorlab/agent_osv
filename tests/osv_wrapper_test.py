@@ -63,7 +63,6 @@ def testParseResults_withFileMissingCVE_returnData(
         def __init__(self, cve_id: str, api_key: str | None = None):
             del cve_id
             del api_key
-            pass
 
     mocker.patch("agent.cve_service_api.get_cve_data_from_api", side_effect=MockCveData)
 

@@ -7,9 +7,7 @@ from typing import Any
 
 import requests
 import tenacity
-from tenacity import stop
-from tenacity import wait
-
+from tenacity import stop, wait
 
 logger = logging.getLogger(__name__)
 

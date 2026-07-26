@@ -2,34 +2,29 @@
 
 import json
 import logging
+import mimetypes
+import os
 import pathlib
 import re
 import subprocess
 import typing
-import os
-import mimetypes
-from agent import hotpatch
 from urllib import parse
 
-import requests
 import magic
+import requests
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+from ostorlab.assets import android_store, domain_name, ios_store
+from ostorlab.assets import repository as repository_asset
+from ostorlab.assets import repository_archive as repository_archive_asset
 from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
-from agent import osv_output_handler
-from agent import utils
+from agent import hotpatch, osv_output_handler, utils
 from agent.api_manager import osv_service_api
-from ostorlab.assets import ios_store
-from ostorlab.assets import android_store
-from ostorlab.assets import domain_name
-from ostorlab.assets import repository as repository_asset
-from ostorlab.assets import repository_archive as repository_archive_asset
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
-
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -253,9 +248,7 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
         module_dir = original_path_obj.parent.resolve()
 
         # Write file to module directory
-        patched_path, patched_content = hotpatch.hotpatch(
-            original_path_obj.name, content
-        )
+        _, patched_content = hotpatch.hotpatch(original_path_obj.name, content)
         file_path = module_dir / original_path_obj.name
         file_path.write_text(
             patched_content.decode("utf-8", errors="ignore"), encoding="utf-8"
@@ -270,8 +263,8 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
         if _is_valid_osv_result(output.stdout):
             return output.stdout
         return None
-    except (OSError, UnicodeDecodeError, ValueError) as e:
-        logger.error("Error during directory scan: %s", e, exc_info=True)
+    except (OSError, UnicodeDecodeError, ValueError):
+        logger.exception("Error during directory scan")
         return None
 
 
@@ -289,8 +282,8 @@ def _run_osv_existing_directory(existing_path: str) -> str | None:
         if _is_valid_osv_result(output.stdout) is True:
             return output.stdout
         return None
-    except (OSError, UnicodeDecodeError, ValueError) as e:
-        logger.error("Error during existing directory scan: %s", e, exc_info=True)
+    except (OSError, UnicodeDecodeError, ValueError):
+        logger.exception("Error during existing directory scan")
         return None
 
 
@@ -678,10 +671,10 @@ class OSVAgent(
         path = message.data.get("path")
 
         if package_version is None:
-            return None
+            return
         if package_name is None:
             logger.warning("Error: Package name must not be None.")
-            return None
+            return
 
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
         whitelisted_ecosystems = None
@@ -705,7 +698,7 @@ class OSVAgent(
             )
 
         if api_result is None or api_result == {}:
-            return None
+            return
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
             output=api_result,
@@ -715,10 +708,10 @@ class OSVAgent(
             whitelisted_ecosystems=whitelisted_ecosystems,
         )
         if parsed_osv_output is None:
-            return None
+            return
 
         if len(parsed_osv_output) == 0:
-            return None
+            return
         vulnerability_location = _prepare_vulnerability_location(message)
         self._emit_vulnerabilities(
             output=parsed_osv_output,

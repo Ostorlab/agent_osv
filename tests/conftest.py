@@ -4,7 +4,8 @@ import json
 import pathlib
 import random
 import subprocess
-from typing import Dict, Callable, Any
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from ostorlab.agent import definitions as agent_definitions
@@ -78,7 +79,7 @@ def workspace_scan_message_file() -> message.Message:
 
 @pytest.fixture()
 def test_agent_with_exclude_path_regexes(
-    agent_persist_mock: Dict[str | bytes, str | bytes],
+    agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> osv_agent.OSVAgent:
     """OSV agent configured to exclude files under /workspace."""
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
@@ -156,7 +157,7 @@ def scan_message_file_content_url() -> message.Message:
 
 @pytest.fixture()
 def test_agent(
-    agent_persist_mock: Dict[str | bytes, str | bytes],
+    agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> osv_agent.OSVAgent:
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
         definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
