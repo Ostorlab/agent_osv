@@ -502,7 +502,7 @@ class OSVAgent(
                 content_url
             )
         else:
-            logger.warning(
+            logger.error(
                 "Repository archive asset is missing content_url; falling back to `%s`.",
                 ASSETS_CODE_PATH,
             )
