@@ -20,6 +20,10 @@ def construct_repository_asset_directory_name(
     repository_name: str = os.path.basename(parsed_url.path.rstrip("/"))
     if repository_name.endswith(".git") is True:
         repository_name = repository_name[: -len(".git")]
+    if len(repository_name) == 0:
+        raise ValueError(
+            f"Repository URL has no repository name segment: {repository_url!r}"
+        )
     return f"{repository_name}_{commit_hash}"
 
 

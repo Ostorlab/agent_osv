@@ -471,9 +471,13 @@ class OSVAgent(
             and commit_hash is not None
             and commit_hash != ""
         ):
-            asset_directory = utils.construct_repository_asset_directory_name(
-                repository_url, commit_hash
-            )
+            try:
+                asset_directory = utils.construct_repository_asset_directory_name(
+                    repository_url, commit_hash
+                )
+            except ValueError as e:
+                logger.error("Invalid repository asset metadata: %s", e)
+                return
         else:
             logger.error(
                 "Repository asset is missing repository_url or commit_hash; "

@@ -53,6 +53,18 @@ def testConstructRepositoryAssetDirectoryName_whenProviderUrlShapes_returnsNameA
     assert directory == f"{expected_repository_name}_abc123"
 
 
+@pytest.mark.parametrize(
+    "repository_url",
+    ["", "/", "https://github.com/", "https://github.com/user/.git"],
+)
+def testConstructRepositoryAssetDirectoryName_whenUrlHasNoRepositoryName_raisesValueError(
+    repository_url: str,
+) -> None:
+    """A repository URL with no usable repository name is rejected by the helper."""
+    with pytest.raises(ValueError):
+        utils.construct_repository_asset_directory_name(repository_url, "abc123")
+
+
 def testConstructRepositoryArchiveAssetDirectoryName_returnsSegmentAfterUploads() -> (
     None
 ):

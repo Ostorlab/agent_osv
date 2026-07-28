@@ -1477,3 +1477,37 @@ def testProcess_whenRepositoryAssetMissingRepositoryUrl_shouldNotScan(
     test_agent.process(missing_url_message)
 
     scan_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "repository_url", ["", "/", "https://github.com/", "https://github.com/user/.git"]
+)
+def testProcess_whenRepositoryUrlYieldsNoRepositoryName_shouldNotScan(
+    repository_url: str,
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """Repository URLs with no usable repository name are refused before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    (shared_code_path / "package-lock.json").write_text("{}", encoding="utf-8")
+    repository_message = message.Message.from_data(
+        "v3.asset.repository",
+        data={
+            "repository_url": repository_url,
+            "commit_hash": "abc123",
+            "provider": "GITHUB",
+        },
+    )
+
+    scan_mock = mocker.patch("agent.osv_agent._run_osv", return_value='{"results":[]}')
+    mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
+
+    test_agent.process(repository_message)
+
+    scan_mock.assert_not_called()
