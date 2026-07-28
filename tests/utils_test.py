@@ -46,7 +46,9 @@ def testConstructRepositoryAssetDirectoryName_whenProviderUrlShapes_returnsNameA
     repository_url: str, expected_repository_name: str
 ) -> None:
     """Supported repository provider URL shapes yield `<repository_name>_<commit_hash>`."""
-    directory = utils.construct_repository_asset_directory_name(repository_url, "abc123")
+    directory = utils.construct_repository_asset_directory_name(
+        repository_url, "abc123"
+    )
 
     assert directory == f"{expected_repository_name}_abc123"
 
