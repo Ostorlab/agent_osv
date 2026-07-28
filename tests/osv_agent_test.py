@@ -4,6 +4,7 @@ import subprocess
 from collections.abc import Callable
 from typing import Any
 
+import pytest
 import requests_mock as rq_mock
 from ostorlab.agent.message import message
 from pytest_mock import plugin
