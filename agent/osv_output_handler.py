@@ -5,7 +5,8 @@ import json
 import logging
 import pathlib
 import re
-from typing import Any, Dict, Iterator, List
+from collections.abc import Iterator
+from typing import Any
 
 import semver
 from ostorlab.agent.kb import kb
@@ -309,8 +310,8 @@ def calculate_risk_rating(risk_ratings: list[str]) -> str:
 
 
 def _extract_cve_reference_advisory(
-    references: List[Dict[str, str]],
-) -> str | List[str]:
+    references: list[dict[str, str]],
+) -> str | list[str]:
     for reference in references:
         if reference["type"] == "ADVISORY":
             cve_match = re.match(CVE_PATTERN, reference["url"], re.IGNORECASE)

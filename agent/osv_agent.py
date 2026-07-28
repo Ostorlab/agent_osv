@@ -2,33 +2,29 @@
 
 import json
 import logging
+import mimetypes
+import os
 import pathlib
 import re
 import subprocess
 import typing
-import os
-import mimetypes
-from agent import hotpatch
 from urllib import parse
 
-import requests
 import magic
+import requests
 from ostorlab.agent import agent
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+from ostorlab.assets import android_store, domain_name, ios_store
+from ostorlab.assets import repository as repository_asset
+from ostorlab.assets import repository_archive as repository_archive_asset
 from ostorlab.runtimes import definitions as runtime_definitions
 from rich import logging as rich_logging
 
-from agent import osv_output_handler
+from agent import hotpatch, osv_output_handler, utils
 from agent.api_manager import osv_service_api
-from ostorlab.assets import ios_store
-from ostorlab.assets import android_store
-from ostorlab.assets import domain_name
-from ostorlab.assets import repository as repository_asset
-from ostorlab.assets import repository_archive as repository_archive_asset
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
-
 
 SUPPORTED_OSV_FILE_NAMES = [
     "buildscript-gradle.lockfile",
@@ -91,7 +87,8 @@ FILE_TYPE_BLACKLIST = (
     ".zip",
 )
 
-REPOSITORY_CODE_PATH = "/code"
+ASSETS_CODE_PATH = "/code"
+ASSET_DIRECTORY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -251,9 +248,7 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
         module_dir = original_path_obj.parent.resolve()
 
         # Write file to module directory
-        patched_path, patched_content = hotpatch.hotpatch(
-            original_path_obj.name, content
-        )
+        _, patched_content = hotpatch.hotpatch(original_path_obj.name, content)
         file_path = module_dir / original_path_obj.name
         file_path.write_text(
             patched_content.decode("utf-8", errors="ignore"), encoding="utf-8"
@@ -268,8 +263,8 @@ def _run_osv_directory(original_path: str, content: bytes) -> str | None:
         if _is_valid_osv_result(output.stdout):
             return output.stdout
         return None
-    except (OSError, UnicodeDecodeError, ValueError) as e:
-        logger.error("Error during directory scan: %s", e, exc_info=True)
+    except (OSError, UnicodeDecodeError, ValueError):
+        logger.exception("Error during directory scan")
         return None
 
 
@@ -287,8 +282,8 @@ def _run_osv_existing_directory(existing_path: str) -> str | None:
         if _is_valid_osv_result(output.stdout) is True:
             return output.stdout
         return None
-    except (OSError, UnicodeDecodeError, ValueError) as e:
-        logger.error("Error during existing directory scan: %s", e, exc_info=True)
+    except (OSError, UnicodeDecodeError, ValueError):
+        logger.exception("Error during existing directory scan")
         return None
 
 
@@ -462,34 +457,107 @@ class OSVAgent(
 
     def _process_repository_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.repository by scanning the shared /code volume."""
+        repository_url: str | None = message.data.get("repository_url")
+        commit_hash: str | None = message.data.get("commit_hash")
         logger.info(
-            "received repository asset url=%s commit=%s",
-            message.data.get("repository_url"),
-            message.data.get("commit_hash"),
+            "Processing repository asset with url `%s` and commit `%s`.",
+            repository_url,
+            commit_hash,
         )
 
-        self._scan_repository_code(message)
+        if (
+            repository_url is not None
+            and repository_url != ""
+            and commit_hash is not None
+            and commit_hash != ""
+        ):
+            try:
+                asset_directory = utils.construct_repository_asset_directory_name(
+                    repository_url, commit_hash
+                )
+            except ValueError as e:
+                logger.error("Invalid repository asset metadata: %s", e)
+                return
+        else:
+            logger.error(
+                "Repository asset is missing repository_url or commit_hash; "
+                "refusing to scan.",
+            )
+            return
+
+        self._scan_repository_code(message, asset_directory)
 
     def _process_repository_archive_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file.repository_archive by scanning the shared /code volume.
 
         The archive carries no repository URL, commit hash nor provider, it is identified by its content URL.
         """
+        content_url: str | None = message.data.get("content_url")
         logger.info(
-            "received repository archive asset content_url=%s path=%s",
-            message.data.get("content_url"),
-            message.data.get("path"),
+            "Processing repository archive asset with content_url `%s`.",
+            content_url,
         )
 
-        self._scan_repository_code(message)
+        if content_url is not None and content_url != "":
+            try:
+                asset_directory = (
+                    utils.construct_repository_archive_asset_directory_name(content_url)
+                )
+            except ValueError as e:
+                logger.error("Invalid repository archive content_url: %s", e)
+                return
+        else:
+            logger.error(
+                "Repository archive asset is missing content_url; refusing to scan.",
+            )
+            return
 
-    def _scan_repository_code(self, message: m.Message) -> None:
+        self._scan_repository_code(message, asset_directory)
+
+    def _scan_repository_code(self, message: m.Message, asset_directory: str) -> None:
         """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
-        repository_path = pathlib.Path(REPOSITORY_CODE_PATH)
+        logger.info("Resolved repository asset directory `%s`.", asset_directory)
+        if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
+            logger.error(
+                "Refusing to scan invalid repository asset directory `%s`.",
+                asset_directory,
+            )
+            return
+
+        assets_code_path: str = os.path.normpath(ASSETS_CODE_PATH)
+        unresolved_repository_code_path: str = os.path.normpath(
+            os.path.join(ASSETS_CODE_PATH, asset_directory)
+        )
+        if (
+            os.path.commonpath([assets_code_path, unresolved_repository_code_path])
+            != assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return
+
+        repository_code_path: str = os.path.realpath(unresolved_repository_code_path)
+        real_assets_code_path: str = os.path.realpath(assets_code_path)
+        if (
+            repository_code_path == real_assets_code_path
+            or os.path.commonpath([real_assets_code_path, repository_code_path])
+            != real_assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return
+
+        repository_path = pathlib.Path(repository_code_path)
         if repository_path.is_dir() is False:
             logger.error(
                 "Repository path %s is not available. Ensure shared volume is mounted.",
-                REPOSITORY_CODE_PATH,
+                repository_code_path,
             )
             return
 
@@ -539,7 +607,7 @@ class OSVAgent(
 
         if found_supported_file is False:
             logger.info(
-                "No supported dependency files found in %s", REPOSITORY_CODE_PATH
+                "No supported dependency files found in %s", repository_code_path
             )
 
     def _process_asset(self, message: m.Message) -> None:
@@ -618,10 +686,10 @@ class OSVAgent(
         path = message.data.get("path")
 
         if package_version is None:
-            return None
+            return
         if package_name is None:
             logger.warning("Error: Package name must not be None.")
-            return None
+            return
 
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
         whitelisted_ecosystems = None
@@ -645,7 +713,7 @@ class OSVAgent(
             )
 
         if api_result is None or api_result == {}:
-            return None
+            return
 
         parsed_osv_output = osv_output_handler.parse_vulnerabilities_osv_api(
             output=api_result,
@@ -655,10 +723,10 @@ class OSVAgent(
             whitelisted_ecosystems=whitelisted_ecosystems,
         )
         if parsed_osv_output is None:
-            return None
+            return
 
         if len(parsed_osv_output) == 0:
-            return None
+            return
         vulnerability_location = _prepare_vulnerability_location(message)
         self._emit_vulnerabilities(
             output=parsed_osv_output,

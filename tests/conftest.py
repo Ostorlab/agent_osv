@@ -2,9 +2,9 @@
 
 import json
 import pathlib
-import random
 import subprocess
-from typing import Dict, Callable, Any
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from ostorlab.agent import definitions as agent_definitions
@@ -78,7 +78,7 @@ def workspace_scan_message_file() -> message.Message:
 
 @pytest.fixture()
 def test_agent_with_exclude_path_regexes(
-    agent_persist_mock: Dict[str | bytes, str | bytes],
+    agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> osv_agent.OSVAgent:
     """OSV agent configured to exclude files under /workspace."""
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
@@ -94,7 +94,7 @@ def test_agent_with_exclude_path_regexes(
                     value=json.dumps([r"^/workspace(/|$)"]).encode(),
                 )
             ],
-            healthcheck_port=random.randint(5000, 6000),
+            healthcheck_port=0,
             redis_url="redis://guest:guest@localhost:6379",
         )
         return osv_agent.OSVAgent(definition, settings)
@@ -156,7 +156,7 @@ def scan_message_file_content_url() -> message.Message:
 
 @pytest.fixture()
 def test_agent(
-    agent_persist_mock: Dict[str | bytes, str | bytes],
+    agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> osv_agent.OSVAgent:
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
         definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
@@ -165,7 +165,7 @@ def test_agent(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[],
-            healthcheck_port=random.randint(5000, 6000),
+            healthcheck_port=0,
             redis_url="redis://guest:guest@localhost:6379",
         )
         return osv_agent.OSVAgent(definition, settings)
@@ -364,7 +364,7 @@ def repository_archive_asset_message() -> message.Message:
     """Creates a repository archive asset message for shared-volume repository scanning."""
     selector = "v3.asset.file.repository_archive"
     msg_data = {
-        "content_url": "https://github.com/org/repo/archive/main.zip",
+        "content_url": "https://example.com/uploads/cc3714/archive/main.zip",
         "path": "repo-main.zip",
     }
     return message.Message.from_data(selector, data=msg_data)

@@ -5,9 +5,7 @@ import json
 
 import requests
 import tenacity
-from tenacity import stop
-from tenacity import wait
-
+from tenacity import stop, wait
 
 CVE_MITRE_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId="
 REQUEST_TIMEOUT = 60
