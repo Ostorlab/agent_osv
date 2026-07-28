@@ -364,7 +364,7 @@ def repository_archive_asset_message() -> message.Message:
     """Creates a repository archive asset message for shared-volume repository scanning."""
     selector = "v3.asset.file.repository_archive"
     msg_data = {
-        "content_url": "https://github.com/org/repo/archive/main.zip",
+        "content_url": "https://example.com/uploads/cc3714/archive/main.zip",
         "path": "repo-main.zip",
     }
     return message.Message.from_data(selector, data=msg_data)

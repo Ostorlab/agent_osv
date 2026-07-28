@@ -955,7 +955,7 @@ def testAgentOSV_whenRepositoryAsset_shouldScanSharedVolumeAndEmitVuln(
     """Ensure repository assets are scanned from shared volume and vulnerabilities are emitted."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_asset_directory(
+    asset_dir = utils.construct_repository_asset_directory_name(
         "https://github.com/org/repo.git",
         "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
     )
@@ -1019,8 +1019,8 @@ def testAgentOSV_whenRepositoryArchiveAsset_shouldScanSharedVolumeAndEmitVuln(
     """Ensure repository archive assets are scanned from the shared volume and located by their content url."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_archive_asset_directory(
-        "https://github.com/org/repo/archive/main.zip"
+    asset_dir = utils.construct_repository_archive_asset_directory_name(
+        "https://example.com/uploads/cc3714/archive/main.zip"
     )
     lockfile_path = shared_code_path / asset_dir / "package-lock.json"
     lockfile_path.parent.mkdir(parents=True)
@@ -1047,7 +1047,7 @@ def testAgentOSV_whenRepositoryArchiveAsset_shouldScanSharedVolumeAndEmitVuln(
     assert scan_mock.call_count == 1
     assert len(agent_mock) == 1
     assert agent_mock[0].data["vulnerability_location"]["repository_archive"] == {
-        "content_url": "https://github.com/org/repo/archive/main.zip"
+        "content_url": "https://example.com/uploads/cc3714/archive/main.zip"
     }
     assert agent_mock[0].data["vulnerability_location"].get("repository") is None
     assert (
@@ -1061,7 +1061,7 @@ def testAgentOSV_whenRepositoryArchiveAsset_shouldScanSharedVolumeAndEmitVuln(
     assert agent_mock[0].data["dna"].endswith(": package-lock.json")
 
 
-def testAgentOSV_whenRepositoryArchiveAssetWithoutContentUrl_shouldEmitVulnWithoutLocation(
+def testAgentOSV_whenRepositoryArchiveAssetWithoutContentUrl_shouldNotScan(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
@@ -1069,31 +1069,18 @@ def testAgentOSV_whenRepositoryArchiveAssetWithoutContentUrl_shouldEmitVulnWitho
     mocker: plugin.MockerFixture,
     tmp_path: Any,
 ) -> None:
-    """A repository archive without a content url cannot identify the asset, the vulnerability is
-    still reported but with no location."""
+    """A repository archive without a content url cannot identify the asset and is skipped."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
     lockfile_path = shared_code_path / "package-lock.json"
     lockfile_path.write_text('{"name": "demo"}', encoding="utf-8")
-    vuln_data = osv_output_handler.VulnData(
-        package_name="lodash",
-        package_version="4.7.11",
-        risk="HIGH",
-        description="Test vulnerability",
-        summary="Test vulnerability",
-        fixed_version="4.17.21",
-        cvss_v3_vector=None,
-        references=[],
-        cves=["CVE-2024-1234"],
-    )
     mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
-    mocker.patch("agent.osv_agent._run_osv", return_value='{"results":[{}]}')
-    mocker.patch("agent.osv_output_handler.parse_osv_output", return_value=[vuln_data])
+    scan_mock = mocker.patch("agent.osv_agent._run_osv")
 
     test_agent.process(repository_archive_asset_message_without_content_url)
 
-    assert len(agent_mock) == 1
-    assert agent_mock[0].data.get("vulnerability_location") is None
+    scan_mock.assert_not_called()
+    assert len(agent_mock) == 0
 
 
 def testAgentOSV_whenRepositoryAssetMissingProvider_shouldDefaultToGit(
@@ -1106,7 +1093,7 @@ def testAgentOSV_whenRepositoryAssetMissingProvider_shouldDefaultToGit(
     """Ensure repository assets missing a provider default to GIT."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_asset_directory(
+    asset_dir = utils.construct_repository_asset_directory_name(
         "https://github.com/org/repo.git",
         "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
     )
@@ -1200,7 +1187,7 @@ def testAgentOSV_whenRepositoryAssetHasGoMod_usesExistingDirectoryScan(
     """Ensure repository go.mod uses existing-directory scan rather than write-and-scan."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_asset_directory(
+    asset_dir = utils.construct_repository_asset_directory_name(
         "https://github.com/org/repo.git",
         "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
     )
@@ -1245,7 +1232,7 @@ def testAgentOSV_whenRepositoryAssetHasBlacklistedDir_skipsNestedLockfiles(
     """Ensure lockfiles under blacklisted dirs are ignored during repository scan."""
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_asset_directory(
+    asset_dir = utils.construct_repository_asset_directory_name(
         "https://github.com/org/repo.git",
         "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
     )
@@ -1298,7 +1285,7 @@ def testProcess_whenRepositoryAsset_shouldScanAssetDirectory(
     del agent_persist_mock
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    asset_dir = utils.build_repository_asset_directory(
+    asset_dir = utils.construct_repository_asset_directory_name(
         "https://github.com/org/repo.git",
         "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
     )
@@ -1328,15 +1315,12 @@ def testProcess_whenRepositoryArchiveAsset_shouldScanAssetDirectory(
     del agent_persist_mock
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
-    content_url = (
-        "https://storage.googleapis.com/ostorlabapps/uploads/"
-        "62f54a92-6d5f-4ce8-848e-adf13ff79fee"
-    )
+    content_url = "https://example.com/uploads/cc3714/archive/main.zip"
     archive_message = message.Message.from_data(
         "v3.asset.file.repository_archive",
         data={"content_url": content_url, "path": "repo-main.zip"},
     )
-    asset_dir = utils.build_repository_archive_asset_directory(content_url)
+    asset_dir = utils.construct_repository_archive_asset_directory_name(content_url)
     archive_dir = shared_code_path / asset_dir
     archive_dir.mkdir()
     (archive_dir / "package-lock.json").write_text("{}", encoding="utf-8")
@@ -1364,14 +1348,13 @@ def testProcess_whenRepositoryArchiveAssetWithQueryParams_ignoresQuery(
     shared_code_path = tmp_path / "code"
     shared_code_path.mkdir()
     content_url = (
-        "https://storage.googleapis.com/ostorlabapps/uploads/"
-        "62f54a92-6d5f-4ce8-848e-adf13ff79fee?token=secret&expires=1"
+        "https://example.com/uploads/cc3714/archive/main.zip?token=secret&expires=1"
     )
     archive_message = message.Message.from_data(
         "v3.asset.file.repository_archive",
         data={"content_url": content_url, "path": "repo-main.zip"},
     )
-    asset_dir = utils.build_repository_archive_asset_directory(content_url)
+    asset_dir = utils.construct_repository_archive_asset_directory_name(content_url)
     archive_dir = shared_code_path / asset_dir
     archive_dir.mkdir()
     (archive_dir / "package-lock.json").write_text("{}", encoding="utf-8")
@@ -1442,14 +1425,42 @@ def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldN
     scan_mock.assert_not_called()
 
 
-def testProcess_whenRepositoryAssetMissingRepositoryUrl_fallsBackToFullVolumeScan(
+def testProcess_whenRepositoryArchiveAssetUrlHasNoUploadsSegment_shouldNotScan(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     mocker: plugin.MockerFixture,
     tmp_path: Any,
 ) -> None:
-    """A repository asset missing repository_url warns and falls back to scanning the full /code volume."""
+    """Repository archive URLs without `uploads/<id>` are rejected before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    archive_message = message.Message.from_data(
+        "v3.asset.file.repository_archive",
+        data={
+            "content_url": "https://example.com/archive/main.zip",
+            "path": "repo-main.zip",
+        },
+    )
+
+    scan_mock = mocker.patch("agent.osv_agent._run_osv")
+    mocker.patch("agent.osv_agent.ASSETS_CODE_PATH", str(shared_code_path))
+
+    test_agent.process(archive_message)
+
+    scan_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetMissingRepositoryUrl_shouldNotScan(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: Any,
+) -> None:
+    """A repository asset missing repository_url cannot identify the asset and is skipped."""
     del agent_mock
     del agent_persist_mock
     shared_code_path = tmp_path / "code"
@@ -1465,4 +1476,4 @@ def testProcess_whenRepositoryAssetMissingRepositoryUrl_fallsBackToFullVolumeSca
 
     test_agent.process(missing_url_message)
 
-    assert scan_mock.call_count == 1
+    scan_mock.assert_not_called()

@@ -460,27 +460,26 @@ class OSVAgent(
         repository_url: str | None = message.data.get("repository_url")
         commit_hash: str | None = message.data.get("commit_hash")
         logger.info(
-            "received repository asset url=%s commit=%s",
+            "Processing repository asset with url `%s` and commit `%s`.",
             repository_url,
             commit_hash,
         )
 
-        asset_directory: str | None = None
         if (
             repository_url is not None
             and repository_url != ""
             and commit_hash is not None
             and commit_hash != ""
         ):
-            asset_directory = utils.build_repository_asset_directory(
+            asset_directory = utils.construct_repository_asset_directory_name(
                 repository_url, commit_hash
             )
         else:
             logger.error(
                 "Repository asset is missing repository_url or commit_hash; "
-                "falling back to `%s`.",
-                ASSETS_CODE_PATH,
+                "refusing to scan.",
             )
+            return
 
         self._scan_repository_code(message, asset_directory)
 
@@ -491,52 +490,64 @@ class OSVAgent(
         """
         content_url: str | None = message.data.get("content_url")
         logger.info(
-            "received repository archive asset content_url=%s path=%s",
+            "Processing repository archive asset with content_url `%s`.",
             content_url,
-            message.data.get("path"),
         )
 
-        asset_directory: str | None = None
         if content_url is not None and content_url != "":
-            asset_directory = utils.build_repository_archive_asset_directory(
-                content_url
-            )
+            try:
+                asset_directory = (
+                    utils.construct_repository_archive_asset_directory_name(content_url)
+                )
+            except ValueError as e:
+                logger.error("Invalid repository archive content_url: %s", e)
+                return
         else:
             logger.error(
-                "Repository archive asset is missing content_url; falling back to `%s`.",
-                ASSETS_CODE_PATH,
+                "Repository archive asset is missing content_url; refusing to scan.",
             )
+            return
 
         self._scan_repository_code(message, asset_directory)
 
-    def _scan_repository_code(
-        self, message: m.Message, asset_directory: str | None = None
-    ) -> None:
+    def _scan_repository_code(self, message: m.Message, asset_directory: str) -> None:
         """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
-        repository_code_path: str = ASSETS_CODE_PATH
-        if asset_directory is not None and len(asset_directory) > 0:
-            if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
-                logger.error(
-                    "Refusing to scan invalid repository asset directory `%s`.",
-                    asset_directory,
-                )
-                return
-
-            resolved_code_path = os.path.realpath(
-                os.path.join(ASSETS_CODE_PATH, asset_directory)
+        logger.info("Resolved repository asset directory `%s`.", asset_directory)
+        if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
+            logger.error(
+                "Refusing to scan invalid repository asset directory `%s`.",
+                asset_directory,
             )
-            resolved_assets_path = os.path.realpath(ASSETS_CODE_PATH)
-            if (
-                os.path.commonpath([resolved_assets_path, resolved_code_path])
-                != resolved_assets_path
-            ):
-                logger.error(
-                    "Refusing to scan repository asset directory outside `%s`: `%s`.",
-                    ASSETS_CODE_PATH,
-                    asset_directory,
-                )
-                return
-            repository_code_path = resolved_code_path
+            return
+
+        assets_code_path: str = os.path.normpath(ASSETS_CODE_PATH)
+        unresolved_repository_code_path: str = os.path.normpath(
+            os.path.join(ASSETS_CODE_PATH, asset_directory)
+        )
+        if (
+            os.path.commonpath([assets_code_path, unresolved_repository_code_path])
+            != assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return
+
+        repository_code_path: str = os.path.realpath(unresolved_repository_code_path)
+        real_assets_code_path: str = os.path.realpath(assets_code_path)
+        if (
+            repository_code_path == real_assets_code_path
+            or os.path.commonpath([real_assets_code_path, repository_code_path])
+            != real_assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return
 
         repository_path = pathlib.Path(repository_code_path)
         if repository_path.is_dir() is False:
