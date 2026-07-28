@@ -476,7 +476,7 @@ class OSVAgent(
                 repository_url, commit_hash
             )
         else:
-            logger.warning(
+            logger.error(
                 "Repository asset is missing repository_url or commit_hash; "
                 "falling back to `%s`.",
                 ASSETS_CODE_PATH,
