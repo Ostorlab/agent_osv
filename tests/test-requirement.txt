@@ -1,6 +1,5 @@
 ruff
 pytest
-pytest-cov
 pytest-mock
 mypy
 typing_extensions
