@@ -569,6 +569,36 @@ def testAgentOSV_whenFingerprintVersionMalformed_skipsOsvQuery(
     assert query_osv_api.called is False
 
 
+def testAgentOSV_whenFingerprintVersionHasNoDigit_skipsOsvQuery(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Digit-free version strings are rejected before the OSV query.
+
+    Covers both the malformed real-world case (``"."`` from an `angular.io`
+    URL) and the intentionally-dropped pseudo-versions such as ``"RELEASE"`` and
+    ``"latest"`` (Maven/npm tags the OSV API cannot resolve). The check requires
+    a digit, so none of these reach the OSV API.
+    """
+    query_osv_api = mocker.patch("agent.api_manager.osv_service_api.query_osv_api")
+    selector = "v3.fingerprint.file.library"
+    for version in (".", "RELEASE", "latest"):
+        msg = message.Message.from_data(
+            selector,
+            data={
+                "library_name": "angular",
+                "library_version": version,
+                "library_type": "JAVASCRIPT_LIBRARY",
+            },
+        )
+        test_agent.process(msg)
+
+    assert len(agent_mock) == 0
+    assert query_osv_api.called is False
+
+
 def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],

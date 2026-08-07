@@ -118,12 +118,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _is_valid_version(version: str) -> bool:
-    """Return True when a version string looks like a real dependency version.
+def _has_digit(version: str) -> bool:
+    """Return True when a version string contains at least one digit.
 
     Fingerprint rules can match incidental text and forward malformed versions
     such as ``"."`` (matched from an ``angular.io`` URL). Such versions carry no
-    digit and are rejected before querying OSV.
+    digit and are rejected before querying OSV. The check is intentionally
+    narrow: non-numeric pseudo-versions such as ``"RELEASE"`` or ``"latest"``
+    (Maven/npm tags) also carry no digit and are dropped, which is acceptable
+    because the OSV API resolves concrete numeric versions, not pseudo-tags.
 
     Args:
         version: The version string carried by a fingerprint message.
@@ -706,9 +709,9 @@ class OSVAgent(
         if package_name is None:
             logger.warning("Error: Package name must not be None.")
             return
-        if _is_valid_version(str(package_version)) is False:
+        if _has_digit(str(package_version)) is False:
             logger.warning(
-                "Skipping fingerprint for %s: version %r is malformed.",
+                "Skipping fingerprint for %s: version %r carries no digit.",
                 package_name,
                 package_version,
             )
