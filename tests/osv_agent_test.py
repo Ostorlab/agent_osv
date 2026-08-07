@@ -542,6 +542,33 @@ def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
     assert len(agent_mock) == 0
 
 
+def testAgentOSV_whenFingerprintVersionMalformed_skipsOsvQuery(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Malformed fingerprint versions such as `.` are rejected before OSV query.
+
+    Regression test for the angular `.` finding produced from an `angular.io`
+    URL by the file fingerprint agent: the OSV agent must not forward versions
+    that contain no digit to the OSV API.
+    """
+    query_osv_api = mocker.patch("agent.api_manager.osv_service_api.query_osv_api")
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "angular",
+        "library_version": ".",
+        "library_type": "JAVASCRIPT_LIBRARY",
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) == 0
+    assert query_osv_api.called is False
+
+
 def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],

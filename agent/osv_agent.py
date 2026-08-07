@@ -118,6 +118,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _is_valid_version(version: str) -> bool:
+    """Return True when a version string looks like a real dependency version.
+
+    Fingerprint rules can match incidental text and forward malformed versions
+    such as ``"."`` (matched from an ``angular.io`` URL). Such versions carry no
+    digit and are rejected before querying OSV.
+
+    Args:
+        version: The version string carried by a fingerprint message.
+
+    Returns:
+        True when the version contains at least one digit, False otherwise.
+    """
+    return any(character.isdigit() for character in version)
+
+
 def _should_exclude_path(
     path: str | None, exclude_path_regexes: list[str] | None
 ) -> bool:
@@ -689,6 +705,13 @@ class OSVAgent(
             return
         if package_name is None:
             logger.warning("Error: Package name must not be None.")
+            return
+        if _is_valid_version(str(package_version)) is False:
+            logger.warning(
+                "Skipping fingerprint for %s: version %r is malformed.",
+                package_name,
+                package_version,
+            )
             return
 
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
