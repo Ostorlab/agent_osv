@@ -144,12 +144,12 @@ def parse_vulnerabilities_osv_binary(
         package_name = output.get("package", {}).get("name")
         package_version = output.get("package", {}).get("version")
         cves: list[str] = []
-        description = ""
+        description_blocks: list[str] = []
         fixed_versions: list[str] = []
         references: list[dict[str, str]] = []
         reference_urls: set[str] = set()
-        risks: list[str] = []
         highest_risk_priority = len(RISK_PRIORITY_LEVELS) + 1
+        highest_risk = "POTENTIALLY"
         highest_risk_summary = ""
         highest_risk_cvss_v3_vector = ""
 
@@ -165,15 +165,34 @@ def parse_vulnerabilities_osv_binary(
             )
             if risk_priority < highest_risk_priority:
                 highest_risk_priority = risk_priority
+                highest_risk = (
+                    risk.upper()
+                    if risk.upper() in RISK_PRIORITY_LEVELS
+                    else "POTENTIALLY"
+                )
                 highest_risk_summary = vulnerability.get("summary", "")
                 highest_risk_cvss_v3_vector = _get_cvss_v3_vector(
                     vulnerability.get("severity")
                 )
 
+            new_cves = []
             for cve in filtered_cves:
                 if cve not in cves:
                     cves.append(cve)
-            description += _aggregate_cves(cve_ids=filtered_cves, api_key=api_key)
+                    new_cves.append(cve)
+            if len(new_cves) > 0:
+                cve_description = _aggregate_cves(
+                    cve_ids=new_cves, api_key=api_key
+                ).strip()
+                if cve_description != "":
+                    description_blocks.append(cve_description)
+            elif len(filtered_cves) == 0:
+                advisory_id = vulnerability.get("id", "")
+                advisory_details = vulnerability.get("details", "")
+                if advisory_id != "" or advisory_details != "":
+                    description_blocks.append(
+                        f"- {advisory_id} : {advisory_details}".strip()
+                    )
             if fixed_version != "":
                 fixed_versions.append(fixed_version)
             for reference in vulnerability.get("references", []):
@@ -181,22 +200,17 @@ def parse_vulnerabilities_osv_binary(
                 if reference_url not in reference_urls:
                     references.append(reference)
                     reference_urls.add(reference_url)
-            risks.append(risk)
-
-        try:
-            fixed_version = max(fixed_versions, key=semver.Version.parse)
-        except ValueError:
-            fixed_version = ""
-            logger.error("Can't get fixed version for %s package.", package_name)
 
         return [
             VulnData(
                 package_name=package_name,
                 package_version=package_version,
-                risk=calculate_risk_rating(risks),
-                description=description,
+                risk=highest_risk,
+                description="\n".join(description_blocks),
                 summary=highest_risk_summary,
-                fixed_version=fixed_version,
+                fixed_version=_get_highest_fixed_version(
+                    fixed_versions, package_name=package_name
+                ),
                 cvss_v3_vector=highest_risk_cvss_v3_vector,
                 references=references,
                 cves=cves,
@@ -369,6 +383,27 @@ def _get_fixed_version(
             fixed_version = events_data[1].get("fixed", "")
 
     return fixed_version
+
+
+def _get_highest_fixed_version(
+    fixed_versions: list[str], package_name: str | None
+) -> str:
+    """Return the highest valid semantic fixed version."""
+    parsed_versions: list[tuple[semver.Version, str]] = []
+    for fixed_version in fixed_versions:
+        try:
+            parsed_versions.append((semver.Version.parse(fixed_version), fixed_version))
+        except (TypeError, ValueError):
+            logger.warning(
+                "Ignoring invalid fixed version `%s` for %s package.",
+                fixed_version,
+                package_name,
+            )
+
+    if len(parsed_versions) == 0:
+        return ""
+
+    return max(parsed_versions, key=lambda version: version[0])[1]
 
 
 def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:

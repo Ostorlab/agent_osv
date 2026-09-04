@@ -80,7 +80,7 @@ def testParseVulnerabilitiesOsvBinary_withMultipleAdvisories_returnOneVulnData(
                 "references": [{"type": "WEB", "url": "https://example.com/1"}],
             },
             {
-                "aliases": ["CVE-2026-33228"],
+                "aliases": ["CVE-2026-32141", "CVE-2026-33228"],
                 "database_specific": {"severity": "HIGH"},
                 "summary": "High advisory",
                 "severity": [{"score": "CVSS:3.1/AV:N"}],
@@ -111,5 +111,105 @@ def testParseVulnerabilitiesOsvBinary_withMultipleAdvisories_returnOneVulnData(
     ]
     assert "CVE-2026-32141" in vulnerability.description
     assert "CVE-2026-33228" in vulnerability.description
+    assert vulnerability.description.count("- [CVE-2026-32141]") == 1
+    assert "CVE description\n- [CVE-2026-33228]" in vulnerability.description
     assert vulnerability.file_type == "npm"
     assert vulnerability.file_name == "package-lock.json"
+
+
+def testParseVulnerabilitiesOsvBinary_withCveLessAdvisory_includeItsDetails(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Explain an advisory when it determines risk but has no CVE alias."""
+    cve_data = cve_service_api.CVE(
+        risk="LOW",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    output = {
+        "package": {"name": "example", "version": "1.0.0"},
+        "vulnerabilities": [
+            {
+                "aliases": ["CVE-2026-10000"],
+                "database_specific": {"severity": "LOW"},
+                "summary": "Low CVE",
+            },
+            {
+                "id": "GHSA-1111-2222-3333",
+                "details": "Advisory without a CVE alias.",
+                "database_specific": {"severity": "HIGH"},
+                "summary": "High GHSA",
+            },
+        ],
+    }
+
+    vulnerability = osv_output_handler.parse_vulnerabilities_osv_binary(output)[0]
+
+    assert vulnerability.risk == "HIGH"
+    assert vulnerability.summary == "High GHSA"
+    assert (
+        "- GHSA-1111-2222-3333 : Advisory without a CVE alias."
+        in vulnerability.description
+    )
+
+
+def testParseVulnerabilitiesOsvBinary_withInvalidFixedVersion_keepValidVersions(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Ignore unparseable fixes without discarding valid semantic versions."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    output = {
+        "package": {"name": "example", "version": "1.0.0"},
+        "vulnerabilities": [
+            {
+                "aliases": ["CVE-2026-10000"],
+                "database_specific": {"severity": "HIGH"},
+                "affected": [{"ranges": [{"events": [{}, {"fixed": "3.5.0"}]}]}],
+            },
+            {
+                "aliases": ["CVE-2026-20000"],
+                "database_specific": {"severity": "HIGH"},
+                "affected": [{"ranges": [{"events": [{}, {"fixed": "release-4"}]}]}],
+            },
+        ],
+    }
+
+    vulnerability = osv_output_handler.parse_vulnerabilities_osv_binary(output)[0]
+
+    assert vulnerability.fixed_version == "3.5.0"
+
+
+def testParseVulnerabilitiesOsvBinary_withoutFixedVersions_doesNotLogError(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Treat the absence of a published fix as a routine condition."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    logger_error_mock = mocker.patch("agent.osv_output_handler.logger.error")
+    output = {
+        "package": {"name": "example", "version": "1.0.0"},
+        "vulnerabilities": [
+            {
+                "aliases": ["CVE-2026-10000"],
+                "database_specific": {"severity": "HIGH"},
+            }
+        ],
+    }
+
+    vulnerability = osv_output_handler.parse_vulnerabilities_osv_binary(output)[0]
+
+    assert vulnerability.fixed_version == ""
+    logger_error_mock.assert_not_called()
