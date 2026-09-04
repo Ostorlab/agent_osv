@@ -1,6 +1,8 @@
 from typing import Any
 
-from agent import osv_output_handler
+from pytest_mock import plugin
+
+from agent import cve_service_api, osv_output_handler
 
 
 def testBuildReferences_always_returnReferencesFromTheOsvOutput() -> None:
@@ -53,3 +55,61 @@ The vulnerable functions are 'defaultsDeep', 'merge', and 'mergeWith' which allo
 """
         in cves_data[0].description
     )
+
+
+def testParseVulnerabilitiesOsvBinary_withMultipleAdvisories_returnOneVulnData(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Combine all advisories affecting one package into one vulnerability."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    output = {
+        "package": {"name": "flatted", "version": "3.3.3"},
+        "vulnerabilities": [
+            {
+                "aliases": ["CVE-2026-32141"],
+                "database_specific": {"severity": "MODERATE"},
+                "summary": "Moderate advisory",
+                "severity": [{"score": "CVSS:3.1/AV:L"}],
+                "affected": [{"ranges": [{"events": [{}, {"fixed": "3.4.0"}]}]}],
+                "references": [{"type": "WEB", "url": "https://example.com/1"}],
+            },
+            {
+                "aliases": ["CVE-2026-33228"],
+                "database_specific": {"severity": "HIGH"},
+                "summary": "High advisory",
+                "severity": [{"score": "CVSS:3.1/AV:N"}],
+                "affected": [{"ranges": [{"events": [{}, {"fixed": "3.5.0"}]}]}],
+                "references": [{"type": "WEB", "url": "https://example.com/2"}],
+            },
+        ],
+    }
+
+    parsed_vulnerabilities = osv_output_handler.parse_vulnerabilities_osv_binary(
+        output,
+        file_type="npm",
+        file_name="package-lock.json",
+    )
+
+    assert len(parsed_vulnerabilities) == 1
+    vulnerability = parsed_vulnerabilities[0]
+    assert vulnerability.package_name == "flatted"
+    assert vulnerability.package_version == "3.3.3"
+    assert vulnerability.cves == ["CVE-2026-32141", "CVE-2026-33228"]
+    assert vulnerability.risk == "HIGH"
+    assert vulnerability.summary == "High advisory"
+    assert vulnerability.cvss_v3_vector == "CVSS:3.1/AV:N"
+    assert vulnerability.fixed_version == "3.5.0"
+    assert vulnerability.references == [
+        {"type": "WEB", "url": "https://example.com/1"},
+        {"type": "WEB", "url": "https://example.com/2"},
+    ]
+    assert "CVE-2026-32141" in vulnerability.description
+    assert "CVE-2026-33228" in vulnerability.description
+    assert vulnerability.file_type == "npm"
+    assert vulnerability.file_name == "package-lock.json"

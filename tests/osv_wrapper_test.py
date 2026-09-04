@@ -70,7 +70,8 @@ def testParseResults_withFileMissingCVE_returnData(
     parsed_data_list = list(parsed_data)
 
     assert parsed_data_list[0].risk == "HIGH"
-    assert len(parsed_data_list[0].references) == 7
+    assert len(parsed_data_list[0].references) == 8
+    assert len({reference["url"] for reference in parsed_data_list[0].references}) == 8
     assert parsed_data_list[0].cves == ["CVE-2021-31402"]
     assert (
         "The dio package 4.0.0 for Dart allows CRLF injection if the attacker controls the HTTP method string, a different vulnerability than CVE-2020-35669."
