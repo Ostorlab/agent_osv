@@ -138,9 +138,20 @@ def parse_vulnerabilities_osv_binary(
     """
     try:
         vulnerabilities = output.get("vulns") or output.get("vulnerabilities") or []
+        if len(vulnerabilities) == 0:
+            return []
+
         package_name = output.get("package", {}).get("name")
         package_version = output.get("package", {}).get("version")
-        parsed_vulns = []
+        cves: list[str] = []
+        description_blocks: list[str] = []
+        fixed_versions: list[str] = []
+        references: list[dict[str, str]] = []
+        reference_urls: set[str] = set()
+        highest_risk_priority = len(RISK_PRIORITY_LEVELS) + 1
+        highest_risk = "POTENTIALLY"
+        highest_risk_summary = ""
+        highest_risk_cvss_v3_vector = ""
 
         for vulnerability in vulnerabilities:
             filtered_cves = [
@@ -148,27 +159,65 @@ def parse_vulnerabilities_osv_binary(
             ]
             severity = vulnerability.get("database_specific", {}).get("severity")
             risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
-
-            description = _aggregate_cves(cve_ids=filtered_cves, api_key=api_key)
-            summary = vulnerability.get("summary", "")
             fixed_version = _get_fixed_version(vulnerability.get("affected"))
-            cvss_v3_vector = _get_cvss_v3_vector(vulnerability.get("severity"))
-            vuln = VulnData(
+            risk_priority = RISK_PRIORITY_LEVELS.get(
+                risk.upper(), RISK_PRIORITY_LEVELS["POTENTIALLY"]
+            )
+            if risk_priority < highest_risk_priority:
+                highest_risk_priority = risk_priority
+                highest_risk = (
+                    risk.upper()
+                    if risk.upper() in RISK_PRIORITY_LEVELS
+                    else "POTENTIALLY"
+                )
+                highest_risk_summary = vulnerability.get("summary", "")
+                highest_risk_cvss_v3_vector = _get_cvss_v3_vector(
+                    vulnerability.get("severity")
+                )
+
+            new_cves = []
+            for cve in filtered_cves:
+                if cve not in cves:
+                    cves.append(cve)
+                    new_cves.append(cve)
+            if len(new_cves) > 0:
+                cve_description = _aggregate_cves(
+                    cve_ids=new_cves, api_key=api_key
+                ).strip()
+                if cve_description != "":
+                    description_blocks.append(cve_description)
+            elif len(filtered_cves) == 0:
+                advisory_id = vulnerability.get("id", "")
+                advisory_details = vulnerability.get("details", "")
+                if advisory_id != "" or advisory_details != "":
+                    description_blocks.append(
+                        f"- {advisory_id} : {advisory_details}".strip()
+                    )
+            if fixed_version != "":
+                fixed_versions.append(fixed_version)
+            for reference in vulnerability.get("references", []):
+                reference_url = reference.get("url", "")
+                if reference_url not in reference_urls:
+                    references.append(reference)
+                    reference_urls.add(reference_url)
+
+        return [
+            VulnData(
                 package_name=package_name,
                 package_version=package_version,
-                risk=risk,
-                description=description,
-                summary=summary,
-                fixed_version=fixed_version,
-                cvss_v3_vector=cvss_v3_vector,
-                references=vulnerability.get("references", {}),
-                cves=filtered_cves,
+                risk=highest_risk,
+                description="\n".join(description_blocks),
+                summary=highest_risk_summary,
+                fixed_version=_get_highest_fixed_version(
+                    fixed_versions, package_name=package_name
+                ),
+                cvss_v3_vector=highest_risk_cvss_v3_vector,
+                references=references,
+                cves=cves,
                 file_name=file_name,
                 file_type=file_type,
             )
-            parsed_vulns.append(vuln)
-
-        return parsed_vulns
+        ]
 
     except json.JSONDecodeError as e:
         logger.error("Error decoding JSON: %s", e)
@@ -334,6 +383,27 @@ def _get_fixed_version(
             fixed_version = events_data[1].get("fixed", "")
 
     return fixed_version
+
+
+def _get_highest_fixed_version(
+    fixed_versions: list[str], package_name: str | None
+) -> str:
+    """Return the highest valid semantic fixed version."""
+    parsed_versions: list[tuple[semver.Version, str]] = []
+    for fixed_version in fixed_versions:
+        try:
+            parsed_versions.append((semver.Version.parse(fixed_version), fixed_version))
+        except (TypeError, ValueError):
+            logger.warning(
+                "Ignoring invalid fixed version `%s` for %s package.",
+                fixed_version,
+                package_name,
+            )
+
+    if len(parsed_versions) == 0:
+        return ""
+
+    return max(parsed_versions, key=lambda version: version[0])[1]
 
 
 def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:

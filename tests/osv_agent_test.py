@@ -10,7 +10,6 @@ from ostorlab.agent.message import message
 from pytest_mock import plugin
 
 from agent import cve_service_api, osv_agent, osv_output_handler, utils
-from agent.api_manager import osv_service_api
 
 
 def testAgentOSV_whenAnalysisRunsWithoutPathWithContent_processMessage(
@@ -621,39 +620,51 @@ def testAgentOSV_whenUpperCaseApiEmptyLowerIsNot_returnsVulnz(
         "library_name": "Wordpress",
         "library_version": "6.5.0",
     }
-    query_osv_spy = mocker.spy(osv_service_api, "query_osv_api")
+    api_result = {
+        "vulns": [
+            {
+                "aliases": ["CVE-2024-31111"],
+                "database_specific": {"severity": "MODERATE"},
+                "details": "WordPress test vulnerability.",
+                "summary": "WordPress test vulnerability",
+                "severity": [],
+                "references": [],
+            }
+        ]
+    }
+    query_osv_mock = mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api",
+        side_effect=[{}, api_result],
+    )
     msg = message.Message.from_data(selector, data=msg_data)
 
     test_agent.process(msg)
 
-    assert query_osv_spy.call_count == 2
-    spy_return_list = query_osv_spy.spy_return_list
-    assert spy_return_list[0] == {}
-    assert len(spy_return_list[1].get("vulns")) > 0
+    assert query_osv_mock.call_count == 2
+    assert query_osv_mock.call_args_list[0].kwargs == {
+        "package_name": "Wordpress",
+        "version": "6.5.0",
+        "ecosystem": None,
+    }
+    assert query_osv_mock.call_args_list[1].kwargs == {
+        "package_name": "wordpress",
+        "version": "6.5.0",
+        "ecosystem": None,
+    }
     assert len(agent_mock) == 1
     assert (
         agent_mock[0].data["title"]
-        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2025-58674, CVE-2025-58246, CVE-2024-6307, CVE-2024-4439, CVE-2024-32111, CVE-2024-31111"
+        == "Use of Outdated Vulnerable Component: Wordpress@6.5.0: CVE-2024-31111"
     )
     assert (
         agent_mock[0].data["dna"]
         == "Use of Outdated Vulnerable Component: Wordpress@6.5.0"
     )
     assert agent_mock[0].data["risk_rating"] == "MEDIUM"
-    assert (
-        agent_mock[0]
-        .data["technical_detail"]
-        .startswith(
-            """#### Dependency `Wordpress`:
-- **Version**: `6.5.0`
-- **Description**:
-- [CVE-2024-31111](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-31111) : Improper Neutralization of Input During Web Page Generation (XSS or 'Cross-site Scripting') vulnerability in Automattic WordPress allows Stored XSS.This issue affects WordPress: from 6.5 through 6.5.4, from 6.4 through 6.4.4, from 6.3 through 6.3.4, from 6.2 through 6.2.5, from 6.1 through 6.1.6, from 6.0 through 6.0.8, from 5.9 through 5.9.9."""
-        )
-    )
+    assert "WordPress test vulnerability." in agent_mock[0].data["technical_detail"]
     assert agent_mock[0].data["description"] == (
         "Dependency `Wordpress` with version `6.5.0` has a security issue.\n"
-        "The issue is identified by CVEs: `CVE-2025-58674, CVE-2025-58246, CVE-2024-6307, CVE-2024-4439, "
-        "CVE-2024-32111, CVE-2024-31111`."
+        "The issue is identified by CVEs: `CVE-2024-31111`."
     )
 
 
