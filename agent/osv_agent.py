@@ -182,14 +182,26 @@ def _get_content(message: m.Message) -> bytes | None:
 
 
 def _get_path(message: m.Message) -> str | None:
+    """Get the file name to rely on for the scan, None when the message carries none.
+
+    The runtime injects url based file assets with an empty path, it must be handled like a
+    missing path and not like an unsupported dependency file.
+    """
     path: str | None = message.data.get("path")
-    if path is not None:
+    if path is not None and path.strip() != "":
         return path
     url: str | None = message.data.get("url")
     if url is not None:
-        parsed_url = parse.urlparse(url)
-        filename = os.path.basename(parsed_url.path)
-        return filename
+        filename = os.path.basename(parse.urlparse(url).path)
+        if filename != "":
+            return filename
+    content_url: str | None = message.data.get("content_url")
+    if content_url is not None:
+        filename = os.path.basename(parse.urlparse(content_url).path)
+        # The content url is opaque most of the time, only rely on it when it holds a known
+        # dependency file name, otherwise fall back to brute forcing every supported format.
+        if _matched_supported_file_name(filename) is not None:
+            return filename
     return None
 
 
@@ -655,7 +667,8 @@ class OSVAgent(
             # The message carries a known dependency file name, scan only that format.
             candidate_file_names = [matched_file_name]
         elif path is None:
-            # No file name to rely on, fall back to brute-forcing every format.
+            # No file name to rely on, fall back to brute-forcing every format and let OSV
+            # validate the content instead of guessing the format here.
             candidate_file_names = SUPPORTED_OSV_FILE_NAMES
         else:
             # A file name is present but is not a supported dependency file, skip it.
