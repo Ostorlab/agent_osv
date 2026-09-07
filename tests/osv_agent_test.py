@@ -1523,3 +1523,65 @@ def testProcess_whenRepositoryUrlYieldsNoRepositoryName_shouldNotScan(
     test_agent.process(repository_message)
 
     scan_mock.assert_not_called()
+
+
+def testAgentOSV_whenContentUrlAndEmptyPath_shouldDownloadFileContentAndBrutForceTheFileName(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    requests_mock: rq_mock.mocker.Mocker,
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file_content_url_empty_path: message.Message,
+    mocker: plugin.MockerFixture,
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
+) -> None:
+    """The runtime injects url based file assets with an empty path, the agent must not skip them."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("subprocess.run", mocked_osv_scanner)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    mocked_requests = requests_mock.get(
+        "https://storage.googleapis.com/ostorlabapps/uploads/e511cdea",
+        content=b"ostorlab",
+    )
+
+    test_agent.process(scan_message_file_content_url_empty_path)
+
+    assert mocked_requests.call_count == 1
+    assert len(agent_mock) == 1
+
+
+def testAgentOSV_whenContentUrlBasenameIsSupportedFileName_shouldScanOnlyThatFormat(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    requests_mock: rq_mock.mocker.Mocker,
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file_content_url_supported_name: message.Message,
+    mocker: plugin.MockerFixture,
+    mocked_osv_scanner: Callable[..., subprocess.CompletedProcess[str]],
+) -> None:
+    """When the content url points to a known dependency file, its name is used instead of brute forcing."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    subprocess_mock = mocker.patch("subprocess.run", side_effect=mocked_osv_scanner)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    requests_mock.get(
+        "https://storage.googleapis.com/ostorlabapps/uploads/package-lock.json",
+        content=b"ostorlab",
+    )
+
+    test_agent.process(scan_message_file_content_url_supported_name)
+
+    assert all(
+        "package-lock.json" in call.args[0] for call in subprocess_mock.call_args_list
+    )
+    assert len(agent_mock) == 1

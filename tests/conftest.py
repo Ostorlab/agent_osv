@@ -406,3 +406,26 @@ def fake_go_osv_output() -> str:
             ]
         }
     )
+
+
+@pytest.fixture
+def scan_message_file_content_url_empty_path() -> message.Message:
+    """Creates a dummy message of type v3.asset.file carrying a content url and an empty `path`,
+    as emitted by the runtime when the asset is injected from a source url."""
+    selector = "v3.asset.file"
+    msg_data = {
+        "content_url": "https://storage.googleapis.com/ostorlabapps/uploads/e511cdea?X-Goog-Expires=604800",
+        "path": "",
+    }
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def scan_message_file_content_url_supported_name() -> message.Message:
+    """Creates a dummy message of type v3.asset.file whose content url basename is a supported
+    dependency file name."""
+    selector = "v3.asset.file"
+    msg_data = {
+        "content_url": "https://storage.googleapis.com/ostorlabapps/uploads/package-lock.json",
+    }
+    return message.Message.from_data(selector, data=msg_data)
