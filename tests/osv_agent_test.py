@@ -1,5 +1,6 @@
 """Unittests for OSV agent."""
 
+import json
 import subprocess
 from collections.abc import Callable
 from typing import Any
@@ -1654,8 +1655,6 @@ def testAgentOSV_whenV2OutputHasVulnerabilities_shouldEmitVulnerability(
     osv_output_as_dict: dict[str, Any],
 ) -> None:
     """When OSV v2 returns populated results alongside experimental_config, vulnerabilities should be emitted."""
-    import json
-
     parsed = json.loads(fake_osv_output)
     parsed["experimental_config"] = {"licenses": {"summary": False}}
     v2_vuln_output = json.dumps(parsed)

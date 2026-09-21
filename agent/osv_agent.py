@@ -755,10 +755,10 @@ def _is_valid_osv_result(results: str | None) -> bool:
 
     try:
         parsed = json.loads(results)
-        if not isinstance(parsed, dict):
+        if isinstance(parsed, dict) is False:
             return False
         results_list = parsed.get("results")
-        if not isinstance(results_list, list) or len(results_list) == 0:
+        if isinstance(results_list, list) is False or len(results_list) == 0:
             return False
     except json.JSONDecodeError:
         return False
