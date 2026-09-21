@@ -1587,31 +1587,128 @@ def testAgentOSV_whenContentUrlBasenameIsSupportedFileName_shouldScanOnlyThatFor
     assert len(agent_mock) == 1
 
 
-def testIsValidOsvResult_whenResultsNoneOrEmpty_returnsFalse() -> None:
-    """Test _is_valid_osv_result returns False for None or empty string."""
-    assert osv_agent._is_valid_osv_result(None) is False
-    assert osv_agent._is_valid_osv_result("") is False
-
-
-def testIsValidOsvResult_whenInvalidJson_returnsFalse() -> None:
-    """Test _is_valid_osv_result returns False for malformed JSON."""
-    assert osv_agent._is_valid_osv_result("not-a-json") is False
-
-
-def testIsValidOsvResult_whenEmptyResultsArray_returnsFalse() -> None:
-    """Test _is_valid_osv_result returns False for empty results (v1 format)."""
-    assert osv_agent._is_valid_osv_result('{"results": []}') is False
-
-
-def testIsValidOsvResult_whenEmptyResultsWithExperimentalConfig_returnsFalse() -> None:
-    """Test _is_valid_osv_result returns False for empty results with config (v2 format)."""
+def testAgentOSV_whenV2OutputHasEmptyResultsWithExperimentalConfig_shouldNotEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """When OSV v2 returns empty results with experimental_config, no vulnerabilities should be emitted."""
     v2_empty_output = (
         '{"results": [], "experimental_config": {"licenses": {"summary": false}}}'
     )
-    assert osv_agent._is_valid_osv_result(v2_empty_output) is False
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, v2_empty_output, None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
 
 
-def testIsValidOsvResult_whenResultsPresent_returnsTrue() -> None:
-    """Test _is_valid_osv_result returns True when results contain entries."""
-    valid_output = '{"results": [{"packages": [{"package": {"name": "foo"}}]}]}'
-    assert osv_agent._is_valid_osv_result(valid_output) is True
+def testAgentOSV_whenV1OutputHasEmptyResults_shouldNotEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """When OSV v1 returns empty results, no vulnerabilities should be emitted."""
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, '{"results": []}', None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenOutputIsMalformedJson_shouldNotEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """When OSV scanner returns malformed JSON, no vulnerabilities should be emitted."""
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, "not-a-json", None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenV2OutputHasVulnerabilities_shouldEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+    fake_osv_output: str,
+    osv_output_as_dict: dict[str, Any],
+) -> None:
+    """When OSV v2 returns populated results alongside experimental_config, vulnerabilities should be emitted."""
+    import json
+
+    parsed = json.loads(fake_osv_output)
+    parsed["experimental_config"] = {"licenses": {"summary": False}}
+    v2_vuln_output = json.dumps(parsed)
+
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="description",
+        fixed_version="2",
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    mocker.patch("agent.osv_output_handler.calculate_risk_rating", return_value="HIGH")
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, v2_vuln_output, None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) > 0
+
+
+def testAgentOSV_whenOutputIsNullJson_shouldNotEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """When OSV scanner returns 'null' JSON, no vulnerabilities should be emitted."""
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, "null", None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenOutputIsJsonArray_shouldNotEmitVulnerability(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """When OSV scanner returns a JSON array '[]', no vulnerabilities should be emitted."""
+    mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess([], 0, "[]", None),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
