@@ -1,5 +1,5 @@
-FROM golang:1.22-alpine as go_stage
-RUN go install github.com/google/osv-scanner/cmd/osv-scanner@v1
+FROM golang:1.27-alpine as go_stage
+RUN go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.6.0
 
 FROM python:3.14-alpine as base
 FROM base as builder
