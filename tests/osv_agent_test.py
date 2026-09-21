@@ -1585,3 +1585,33 @@ def testAgentOSV_whenContentUrlBasenameIsSupportedFileName_shouldScanOnlyThatFor
         "package-lock.json" in call.args[0] for call in subprocess_mock.call_args_list
     )
     assert len(agent_mock) == 1
+
+
+def testIsValidOsvResult_whenResultsNoneOrEmpty_returnsFalse() -> None:
+    """Test _is_valid_osv_result returns False for None or empty string."""
+    assert osv_agent._is_valid_osv_result(None) is False
+    assert osv_agent._is_valid_osv_result("") is False
+
+
+def testIsValidOsvResult_whenInvalidJson_returnsFalse() -> None:
+    """Test _is_valid_osv_result returns False for malformed JSON."""
+    assert osv_agent._is_valid_osv_result("not-a-json") is False
+
+
+def testIsValidOsvResult_whenEmptyResultsArray_returnsFalse() -> None:
+    """Test _is_valid_osv_result returns False for empty results (v1 format)."""
+    assert osv_agent._is_valid_osv_result('{"results": []}') is False
+
+
+def testIsValidOsvResult_whenEmptyResultsWithExperimentalConfig_returnsFalse() -> None:
+    """Test _is_valid_osv_result returns False for empty results with config (v2 format)."""
+    v2_empty_output = (
+        '{"results": [], "experimental_config": {"licenses": {"summary": false}}}'
+    )
+    assert osv_agent._is_valid_osv_result(v2_empty_output) is False
+
+
+def testIsValidOsvResult_whenResultsPresent_returnsTrue() -> None:
+    """Test _is_valid_osv_result returns True when results contain entries."""
+    valid_output = '{"results": [{"packages": [{"package": {"name": "foo"}}]}]}'
+    assert osv_agent._is_valid_osv_result(valid_output) is True

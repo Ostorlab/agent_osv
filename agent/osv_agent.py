@@ -750,14 +750,12 @@ class OSVAgent(
 
 def _is_valid_osv_result(results: str | None) -> bool:
     """Check if the results are valid."""
-    if results is None:
-        return False
-
-    if results == "":
+    if results is None or results == "":
         return False
 
     try:
-        if json.loads(results) == {"results": []}:
+        parsed = json.loads(results)
+        if not parsed.get("results"):
             return False
     except json.JSONDecodeError:
         return False
