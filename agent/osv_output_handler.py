@@ -274,6 +274,7 @@ def parse_vulnerabilities_osv_api(
             package_name,
             package_version=package_version,
             ecosystem=ecosystem,
+            whitelisted_ecosystems=whitelisted_ecosystems,
         )
         fixed_versions.extend(vulnerability_fixed_versions)
         has_unfixed_covering_interval = (
@@ -408,6 +409,60 @@ def _parse_version_key(version: str) -> semver.Version | None:
         return None
 
 
+# Ecosystems the OSV schema documents as distribution package namespaces:
+# they version packages by the distribution's own scheme (``3.4.6-6.el8``,
+# ``3.1.1-2+deb9u2``, ``3.5.1+dfsg-1``), optionally scoped with a release
+# suffix (``Debian:11``, ``Alpine:v3.19``, ``SUSE:Server:15``,
+# ``Root:Alpine:3.18``). Verified against the schema's ecosystem table
+# (https://ossf.github.io/osv-schema/ #affectedpackage-schema): package
+# managers and registries (npm, PyPI, Maven, NuGet, Go, crates.io, ...),
+# project namespaces (Linux, OSS-Fuzz, Android, Bitnami, Kubernetes) and
+# version/score namespaces (NVD, CNA, CVSS_*) are deliberately absent —
+# only distributions re-version upstream packages in their own scheme.
+_DISTRIBUTION_ECOSYSTEMS = frozenset(
+    {
+        "AlmaLinux",
+        "Alpaquita",
+        "Alpine",
+        "Azure Linux",
+        "BellSoft Hardened Containers",
+        "Chainguard",
+        "CleanStart",
+        "Debian",
+        "Docker Hardened Images",
+        "FreeBSD",
+        "Mageia",
+        "MinimOS",
+        "Photon OS",
+        "Raspberry Pi OS",
+        "Red Hat",
+        "Red Hat Lightwell",
+        "Rocky Linux",
+        "Root",
+        "SUSE",
+        "TuxCare",
+        "Ubuntu",
+        "Wolfi",
+        "openEuler",
+        "openSUSE",
+    }
+)
+
+
+def _is_distribution_ecosystem(ecosystem: str | None) -> bool:
+    """Whether an affected entry's ecosystem is a distribution package
+    namespace (bare or with a release suffix).
+
+    The comparison is on the namespace before the first ``:`` so the release
+    suffixes the schema documents (``Debian:11``, ``Ubuntu:24.04``,
+    ``Alpine:v3.19``, ``openSUSE:Leap:15.5``) match their base distribution.
+    """
+    if ecosystem is None:
+        return False
+    namespace = ecosystem.split(":", 1)[0].strip()
+    return namespace in _DISTRIBUTION_ECOSYSTEMS
+
+
 def _covers_version(
     introduced: str | None,
     limit: str | None,
@@ -444,6 +499,7 @@ def _get_fixed_versions(
     package_name: str | None,
     package_version: str | None = None,
     ecosystem: str | None = None,
+    whitelisted_ecosystems: list[str] | None = None,
 ) -> tuple[list[str], bool]:
     """Collect the fixed-version endpoints of the affected intervals that
     cover the detected package version.
@@ -462,11 +518,22 @@ def _get_fixed_versions(
     Only the entries whose package name matches the queried package
     (case-insensitive; an entry without a package is treated as the queried
     package) and whose ecosystem matches, when one is given, are considered.
-    Within them, every interval that covers the detected version contributes
-    its ``fixed`` endpoint; the aggregate recommendation then takes the
-    maximum, which names the branch the user can stay on. Endpoints that are
-    not semver (distro formats) are dropped by the aggregation, never crash
-    it. GIT ranges carry commit hashes, not versions, and are skipped for the
+    For an **unscoped** query (neither ``ecosystem`` nor
+    ``whitelisted_ecosystems``), distribution-namespace entries
+    (``Debian:11``, ``AlmaLinux:8``, ... — see
+    ``_is_distribution_ecosystem``) are skipped before collecting endpoints:
+    a distro's fixed version is expressed in the distribution's own version
+    scheme, is not actionable for an upstream consumer, and — when it happens
+    to parse as semver (``3.5.1+dfsg-1`` parses as build metadata,
+    ``3.4.6-6.el8`` as a pre-release) — can outrank the real ecosystem
+    endpoint. Distro endpoints therefore never enter the recommendation
+    through a query that did not target them; the semver aggregate's
+    parse-drop remains as the net for anything whitelisted on purpose (the
+    native-library pipeline whitelists distro ecosystems).
+    Within the kept entries, every interval that covers the detected version
+    contributes its ``fixed`` endpoint; the aggregate recommendation then
+    takes the maximum, which names the branch the user can stay on.
+    GIT ranges carry commit hashes, not versions, and are skipped for the
     version comparison.
 
     Returns the collected endpoints and whether any covering interval closes
@@ -480,6 +547,7 @@ def _get_fixed_versions(
     version_key = (
         _parse_version_key(package_version) if package_version is not None else None
     )
+    unscoped_query = ecosystem is None and not whitelisted_ecosystems
     fixed_versions: list[str] = []
     has_unfixed_covering_interval = False
     for affected in affected_data:
@@ -497,6 +565,8 @@ def _get_fixed_versions(
             and entry_ecosystem is not None
             and entry_ecosystem != ecosystem
         ):
+            continue
+        if unscoped_query and _is_distribution_ecosystem(entry_ecosystem):
             continue
         for ranges_data in affected.get("ranges", []):
             if ranges_data.get("type") == "GIT":
@@ -530,11 +600,21 @@ def _get_fixed_versions(
 def _get_highest_fixed_version(
     fixed_versions: list[str], package_name: str | None
 ) -> str:
-    """Return the highest valid semantic fixed version."""
-    parsed_versions: list[tuple[semver.Version, str]] = []
+    """Return the highest valid semantic fixed version.
+
+    The emitted string is the parsed version's ``major.minor.patch`` — never
+    the raw collected string — so an endpoint that slipped through the
+    entry-level filters carrying a distribution suffix (``3.5.1+dfsg-1``)
+    or pre-release segment (``3.4.6-6.el8``) is recommended in canonical
+    semver form rather than verbatim. Dropping pre-release/build segments is
+    conservative-safe for the "update to version >= X or later" semantics:
+    ``3.5.0`` follows ``3.5.0-beta.1`` in semver precedence, so naming the
+    release is always at-or-above the advisory's own first fixed version.
+    """
+    parsed_versions: list[semver.Version] = []
     for fixed_version in fixed_versions:
         try:
-            parsed_versions.append((semver.Version.parse(fixed_version), fixed_version))
+            parsed_versions.append(semver.Version.parse(fixed_version))
         except (TypeError, ValueError):
             logger.warning(
                 "Ignoring invalid fixed version `%s` for %s package.",
@@ -545,7 +625,8 @@ def _get_highest_fixed_version(
     if len(parsed_versions) == 0:
         return ""
 
-    return max(parsed_versions, key=lambda version: version[0])[1]
+    highest = max(parsed_versions)
+    return f"{highest.major}.{highest.minor}.{highest.patch}"
 
 
 def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:

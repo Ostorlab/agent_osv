@@ -1,5 +1,6 @@
 from typing import Any
 
+import pytest
 from pytest_mock import plugin
 
 from agent import cve_service_api, osv_output_handler
@@ -515,3 +516,217 @@ def testWhitelistVulnz_whenMatchIsNotTheFirstAffectedEntry_keepsVuln() -> None:
     )
 
     assert len(whitelisted) == 1
+
+
+def testGetFixedVersions_whenQueryIsUnscoped_skipsDistributionEntries(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """An unscoped query (no ecosystem, no whitelist) must not collect
+    distribution-namespace endpoints: a distro's fixed version is expressed
+    in the distribution's own version scheme and is not actionable for an
+    upstream consumer.
+
+    The distro strings here both parse as semver (``3.5.1+dfsg-1`` as build
+    metadata, ``3.4.6-6.el8`` as a pre-release), which is precisely why
+    relying on the semver parse to keep them out is not enough — on the
+    previous revision the aggregate emitted ``3.5.1+dfsg-1`` verbatim."""
+    affected = [
+        {
+            "package": {"ecosystem": "Debian:11", "name": "jquery"},
+            "ranges": [
+                {
+                    "type": "ECOSYSTEM",
+                    "events": [
+                        {"introduced": "0"},
+                        {"fixed": "3.5.1+dfsg-1"},
+                    ],
+                }
+            ],
+        },
+        {
+            "package": {"ecosystem": "AlmaLinux:8", "name": "jquery"},
+            "ranges": [
+                {
+                    "type": "ECOSYSTEM",
+                    "events": [{"introduced": "0"}, {"fixed": "3.4.6-6.el8"}],
+                }
+            ],
+        },
+        {
+            "package": {"ecosystem": "npm", "name": "jquery"},
+            "ranges": [
+                {
+                    "type": "SEMVER",
+                    "events": [{"introduced": "0"}, {"fixed": "3.4.0"}],
+                }
+            ],
+        },
+    ]
+
+    endpoints, _ = osv_output_handler._get_fixed_versions(
+        affected, "jquery", package_version="2.2.0"
+    )
+
+    assert endpoints == ["3.4.0"]
+
+
+def testParseVulnerabilitiesOsvApi_whenDistroOnlyRecords_unscopedQuery_degradesGracefully(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A record set whose matching entries are all distribution namespaces
+    yields no recommendation rather than a distro-formatted string.
+
+    With ``3.5.1+dfsg-1`` (which parses as semver build metadata and, on the
+    previous revision, was emitted verbatim as the recommendation), the
+    unscoped query must skip the distro entries and degrade to the empty
+    fixed version — the caller then recommends the latest available
+    version. The emitted recommendation never carries a distro-format
+    string such as ``3.4.6-6.el8`` or ``3.5.1+dfsg-1``."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    output = {
+        "vulns": [
+            {
+                "aliases": ["CVE-2026-10002"],
+                "database_specific": {"severity": "HIGH"},
+                "affected": [
+                    {
+                        "package": {"ecosystem": "Debian:11", "name": "somedep"},
+                        "ranges": [
+                            {
+                                "type": "ECOSYSTEM",
+                                "events": [
+                                    {"introduced": "0"},
+                                    {"fixed": "3.5.1+dfsg-1"},
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "package": {"ecosystem": "AlmaLinux:8", "name": "somedep"},
+                        "ranges": [
+                            {
+                                "type": "ECOSYSTEM",
+                                "events": [
+                                    {"introduced": "0"},
+                                    {"fixed": "3.4.6-6.el8"},
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            }
+        ]
+    }
+
+    parsed = osv_output_handler.parse_vulnerabilities_osv_api(
+        output, package_name="somedep", package_version="2.2.0"
+    )
+
+    assert parsed[0].fixed_version == ""
+    for vuln in osv_output_handler.construct_vuln(parsed):
+        assert "dfsg" not in vuln.technical_detail
+        assert ".el8" not in vuln.technical_detail
+
+
+def testGetHighestFixedVersion_whenEndpointCarriesDistroSuffix_emitsCanonicalSemver() -> (
+    None
+):
+    """The aggregate emits the parsed version's major.minor.patch, never the
+    raw string — the safety net for an endpoint that enters the collection
+    through a whitelist that deliberately includes a distribution ecosystem
+    (the native-library pipeline). ``3.5.1+dfsg-1`` must be recommended as
+    ``3.5.1``, not verbatim."""
+    assert (
+        osv_output_handler._get_highest_fixed_version(
+            ["3.5.1+dfsg-1", "3.4.0"], "jquery"
+        )
+        == "3.5.1"
+    )
+
+
+def testGetFixedVersions_whenWhitelistCoversDistroEcosystem_keepsEntry() -> None:
+    """The distribution skip applies only to unscoped queries: a query whose
+    whitelist deliberately includes a distribution ecosystem (the
+    native-library pipeline whitelists Alpine/Debian) still collects those
+    entries' endpoints — the semver aggregate and the normalized emission,
+    not the entry-level skip, are what keep the recommendation clean."""
+    affected = [
+        {
+            "package": {"ecosystem": "Debian", "name": "jquery"},
+            "ranges": [
+                {
+                    "type": "ECOSYSTEM",
+                    "events": [{"introduced": "0"}, {"fixed": "3.5.1+dfsg-1"}],
+                }
+            ],
+        }
+    ]
+
+    endpoints, _ = osv_output_handler._get_fixed_versions(
+        affected,
+        "jquery",
+        package_version="2.2.0",
+        whitelisted_ecosystems=["Debian"],
+    )
+
+    assert endpoints == ["3.5.1+dfsg-1"]
+    assert osv_output_handler._get_highest_fixed_version(endpoints, "jquery") == "3.5.1"
+
+
+@pytest.mark.parametrize(
+    "ecosystem",
+    [
+        "Debian",
+        "Debian:11",
+        "Alpine",
+        "Alpine:v3.19",
+        "AlmaLinux:8",
+        "Ubuntu:24.04",
+        "SUSE:Server:15",
+        "openSUSE:Leap:15.5",
+        "Root:Alpine:3.18",
+        "Red Hat",
+        "Photon OS:4.0",
+        "Raspberry Pi OS:13",
+    ],
+)
+def testIsDistributionEcosystem_whenDistributionNamespace_returnsTrue(
+    ecosystem: str,
+) -> None:
+    """Bare and release-suffixed distribution namespaces are recognised."""
+    assert osv_output_handler._is_distribution_ecosystem(ecosystem) is True
+
+
+@pytest.mark.parametrize(
+    "ecosystem",
+    [
+        "npm",
+        "PyPI",
+        "Maven",
+        "Go",
+        "crates.io",
+        "Linux",
+        "OSS-Fuzz",
+        "Bitnami",
+        "SwiftURL",
+        "Homebrew",
+        "Kubernetes",
+        "Echo:PyPI",
+        "Android",
+        None,
+        "",
+    ],
+)
+def testIsDistributionEcosystem_whenPackageManagerOrProjectNamespace_returnsFalse(
+    ecosystem: str | None,
+) -> None:
+    """Package managers, registries and project namespaces are not
+    distribution package namespaces and keep contributing to unscoped
+    queries."""
+    assert osv_output_handler._is_distribution_ecosystem(ecosystem) is False
