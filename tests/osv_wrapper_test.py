@@ -41,7 +41,14 @@ def testParseResults_withValidFile_returnData(fake_osv_output: str) -> None:
         """- [CVE-2022-1941](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1941) : A parsing vulnerability for the MessageSet type in the ProtocolBuffers versions prior to and including 3.16.1, 3.17.3, 3.18.2, 3.19.4, 3.20.1 and 3.21.5 for protobuf-cpp, and versions prior to and including 3.16.1, 3.17.3, 3.18.2, 3.19.4, 3.20.1 and 4.21.5 for protobuf-python can lead to out of memory failures. A specially crafted message with multiple key-value per elements creates parsing issues, and can lead to a Denial of Service against services receiving unsanitized input. We recommend upgrading to versions 3.18.3, 3.19.5, 3.20.2, 3.21.6 for protobuf-cpp and 3.18.3, 3.19.5, 3.20.2, 4.21.6 for protobuf-python. Versions for 3.16 and 3.17 are no longer updated.The issue was fixed in version `4.21.6`."""
         in parsed_data_list[0].description
     )
-    assert parsed_data_list[0].fixed_version == "3.18.3"
+    # The fixture detects protobuf 3.20.1 (PyPI); CVE-2022-1941's advisory
+    # lists one affected interval per maintained branch and the interval
+    # covering 3.20.1 is [3.20.0, 3.20.2), so 3.20.2 is the version that
+    # fixes the detected installation. The previous expectation (3.18.3)
+    # was the first interval's endpoint read positionally — a version the
+    # already-installed 3.20.1 exceeds, so the old recommendation was
+    # satisfied by the vulnerable installation itself.
+    assert parsed_data_list[0].fixed_version == "3.20.2"
     assert parsed_data_list[0].package_version == "3.20.1"
     assert parsed_data_list[0].package_name == "protobuf"
     assert (

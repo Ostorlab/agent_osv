@@ -296,6 +296,39 @@ def osv_api_output_risk_invalid() -> dict[str, Any]:
     return json_data
 
 
+@pytest.fixture(name="osv_api_output_opencv340")
+def osv_api_output_opencv340() -> dict[str, Any]:
+    """Read and return the recorded OSV API response for opencv@3.4.0.
+
+    Recorded from ``https://api.osv.dev/v1/query`` (``version`` 3.4.0,
+    ``package.name`` opencv, no ecosystem) so the tests never depend on the
+    live catalog evolving: at recording time the response carried 27 records
+    across the npm, Debian, AlmaLinux, Ubuntu, Mageia and openSUSE
+    ecosystems, including the distro-format fixed versions (e.g.
+    ``3.4.6-6.el8``) that exercise the distribution-namespace skip.
+    """
+    file_path = f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_api_output_opencv340.json"
+    data = pathlib.Path(file_path).read_text(encoding="utf-8")
+    json_data: dict[str, Any] = json.loads(data)
+    return json_data
+
+
+@pytest.fixture(name="osv_api_output_opencv600_npm")
+def osv_api_output_opencv600_npm() -> dict[str, Any]:
+    """Read and return the recorded npm-scoped OSV response for opencv@6.0.0.
+
+    Recorded from ``https://api.osv.dev/v1/query`` (``version`` 6.0.0,
+    ``package`` opencv / npm — the exact request the agent issues for a
+    ``JAVASCRIPT_LIBRARY`` fingerprint, whose ecosystem mapping resolves to
+    the single npm ecosystem). At recording time it carried the two node-opencv
+    advisories fixing the CVE-2019-10061 command injection in 6.1.0.
+    """
+    file_path = f"{pathlib.Path(__file__).parent.parent}/tests/files/osv_api_output_opencv600.json"
+    data = pathlib.Path(file_path).read_text(encoding="utf-8")
+    json_data: dict[str, Any] = json.loads(data)
+    return json_data
+
+
 @pytest.fixture
 def elf_library_fingerprint_msg() -> message.Message:
     selector = "v3.fingerprint.file.library"

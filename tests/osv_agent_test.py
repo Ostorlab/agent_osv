@@ -450,8 +450,18 @@ def testAgentOSV_always_emitVulnWithValidTechnicalDetail(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    osv_api_output_opencv600_npm: dict[str, Any],
 ) -> None:
     """Ensure that the agent always emits a vulnerability with a valid technical detail."""
+    # The recorded npm-scoped response keeps this test deterministic: the
+    # live catalog evolves (new advisories, edited records), and the exact
+    # recommendation and technical-detail expectations below pin the
+    # behaviour, not the API's data on the day CI runs.
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api",
+        return_value=osv_api_output_opencv600_npm,
+    )
     selector = "v3.fingerprint.file.library"
     msg_data = {
         "library_name": "opencv",
@@ -546,8 +556,19 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    osv_api_output_opencv340: dict[str, Any],
 ) -> None:
     """Ensure that the technical detail includes the path when it's provided in the message."""
+    # The recorded ecosystem-less response (27 records: npm, Debian,
+    # AlmaLinux, Ubuntu, Mageia, openSUSE) keeps this test deterministic —
+    # the live catalog evolves, and the exact recommendation below pins the
+    # distribution-namespace skip's behaviour rather than OSV's data on the
+    # day CI runs.
+    mocker.patch(
+        "agent.api_manager.osv_service_api.query_osv_api",
+        return_value=osv_api_output_opencv340,
+    )
     selector = "v3.fingerprint.file.library"
     msg_data = {
         "library_name": "opencv",
@@ -572,10 +593,17 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
         """Dependency `opencv` with version `3.4.0` has a security issue.
 The issue is identified by CVEs: `CVE-2019-10061`."""
     )
+    # The live OSV advisory for CVE-2019-10061 (node-opencv) fixes the
+    # command injection in 6.1.0 and the detected 3.4.0 is inside the
+    # affected interval [0, 6.1.0), so the recommendation names that fix.
+    # The previous expectation ("latest available version") documented the
+    # crash-to-empty defect: the ecosystem-less query returns distro records
+    # whose affected[0] fixed versions are distro-format strings (e.g.
+    # 3.4.6-6.el8), the old first-entry reader collected those, and the
+    # old max() crashed on them, wiping the recommendation for every CVE.
     assert (
-        agent_mock[0]
-        .data["recommendation"]
-        .startswith("We recommend updating `opencv` to the latest available version.")
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
 
 

@@ -146,6 +146,7 @@ def parse_vulnerabilities_osv_binary(
         cves: list[str] = []
         description_blocks: list[str] = []
         fixed_versions: list[str] = []
+        has_unfixed_covering_interval = False
         references: list[dict[str, str]] = []
         reference_urls: set[str] = set()
         highest_risk_priority = len(RISK_PRIORITY_LEVELS) + 1
@@ -159,7 +160,13 @@ def parse_vulnerabilities_osv_binary(
             ]
             severity = vulnerability.get("database_specific", {}).get("severity")
             risk = _vuln_risk_rating(risk=severity, cves=filtered_cves, api_key=api_key)
-            fixed_version = _get_fixed_version(vulnerability.get("affected"))
+            vulnerability_fixed_versions, has_unfixed_interval = _get_fixed_versions(
+                vulnerability.get("affected"), package_name, package_version
+            )
+            fixed_versions.extend(vulnerability_fixed_versions)
+            has_unfixed_covering_interval = (
+                has_unfixed_covering_interval or has_unfixed_interval
+            )
             risk_priority = RISK_PRIORITY_LEVELS.get(
                 risk.upper(), RISK_PRIORITY_LEVELS["POTENTIALLY"]
             )
@@ -193,14 +200,18 @@ def parse_vulnerabilities_osv_binary(
                     description_blocks.append(
                         f"- {advisory_id} : {advisory_details}".strip()
                     )
-            if fixed_version != "":
-                fixed_versions.append(fixed_version)
             for reference in vulnerability.get("references", []):
                 reference_url = reference.get("url", "")
                 if reference_url not in reference_urls:
                     references.append(reference)
                     reference_urls.add(reference_url)
 
+        if has_unfixed_covering_interval:
+            fixed_version = ""
+        else:
+            fixed_version = _get_highest_fixed_version(
+                fixed_versions, package_name=package_name
+            )
         return [
             VulnData(
                 package_name=package_name,
@@ -208,9 +219,7 @@ def parse_vulnerabilities_osv_binary(
                 risk=highest_risk,
                 description="\n".join(description_blocks),
                 summary=highest_risk_summary,
-                fixed_version=_get_highest_fixed_version(
-                    fixed_versions, package_name=package_name
-                ),
+                fixed_version=fixed_version,
                 cvss_v3_vector=highest_risk_cvss_v3_vector,
                 references=references,
                 cves=cves,
@@ -230,6 +239,7 @@ def parse_vulnerabilities_osv_api(
     package_version: str,
     api_key: str | None = None,
     whitelisted_ecosystems: list[str] | None = None,
+    ecosystem: str | None = None,
 ) -> list[VulnData]:
     """Parse the OSV API response to extract vulnerabilities.
 
@@ -238,6 +248,8 @@ def parse_vulnerabilities_osv_api(
         package_name: The package name.
         package_version: The package version.
         api_key: The NVD API key.
+        whitelisted_ecosystems: The ecosystems to keep advisories for.
+        ecosystem: The ecosystem the query was scoped to, when it was.
 
     Returns:
         Parsed output.
@@ -246,6 +258,7 @@ def parse_vulnerabilities_osv_api(
     risks_list: list[str] = []
     vulnerabilities = output.get("vulns", []) or output.get("vulnerabilities", [])
     fixed_versions: list[str] = []
+    has_unfixed_covering_interval = False
     references: list[dict[str, Any]] = []
     description = ""
     highest_risk_vuln_info: dict[str, str] = {}
@@ -256,9 +269,17 @@ def parse_vulnerabilities_osv_api(
         vulnerabilities, whitelisted_ecosystems
     )
     for vulnerability in whitlisted_vulnerabilities:
-        fixed_version = _get_fixed_version(vulnerability.get("affected"))
-        if fixed_version != "":
-            fixed_versions.append(fixed_version)
+        vulnerability_fixed_versions, has_unfixed_interval = _get_fixed_versions(
+            vulnerability.get("affected"),
+            package_name,
+            package_version=package_version,
+            ecosystem=ecosystem,
+            whitelisted_ecosystems=whitelisted_ecosystems,
+        )
+        fixed_versions.extend(vulnerability_fixed_versions)
+        has_unfixed_covering_interval = (
+            has_unfixed_covering_interval or has_unfixed_interval
+        )
         filtered_cves = [
             alias for alias in vulnerability.get("aliases", []) if "CVE" in alias
         ]
@@ -288,11 +309,12 @@ def parse_vulnerabilities_osv_api(
         risks_list.append(risk)
         references.extend(vulnerability.get("references", {}))
 
-    try:
-        fixed_version = max(fixed_versions, key=semver.Version.parse)
-    except ValueError:
+    if has_unfixed_covering_interval:
+        # A covering interval closes with ``last_affected`` and names no safe
+        # version: no endpoint can be recommended for this package.
         fixed_version = ""
-        logger.error("Can't get fixed version for %s package.", package_name)
+    else:
+        fixed_version = _get_highest_fixed_version(fixed_versions, package_name)
     return [
         VulnData(
             package_name=package_name,
@@ -314,14 +336,20 @@ def _whitelist_vulnz_from_ecosystems(
 ) -> list[dict[str, Any]]:
     if whitelisted_ecosystems is None or len(whitelisted_ecosystems) == 0:
         return vulnerabilities
+    whitelisted_ecosystem_set = set(whitelisted_ecosystems)
     whitelisted = []
     for vuln in vulnerabilities:
         affected_data = vuln.get("affected", [])
-        ecosystem = None
-        if len(affected_data) > 0:
-            ecosystem = affected_data[0].get("package", {}).get("ecosystem")
-        if ecosystem in whitelisted_ecosystems:
-            whitelisted.append(vuln)
+        # A record is relevant when ANY of its affected entries names a
+        # whitelisted ecosystem: OSV records list one entry per package, and
+        # the entry matching the whitelist may not be the first one (reading
+        # only ``affected[0]`` drops records whose first entry belongs to
+        # another ecosystem).
+        for affected in affected_data:
+            ecosystem = (affected.get("package") or {}).get("ecosystem")
+            if ecosystem in whitelisted_ecosystem_set:
+                whitelisted.append(vuln)
+                break
     return whitelisted
 
 
@@ -369,30 +397,224 @@ def _extract_cve_reference_advisory(
     return ""
 
 
-def _get_fixed_version(
+def _parse_version_key(version: str) -> semver.Version | None:
+    """The semver key of a version string, or None when it is not semver.
+
+    Distros and some ecosystems use version formats semver cannot parse
+    (``3.1.1-2+deb9u2``); a None key means "cannot compare", never "lower".
+    """
+    try:
+        return semver.Version.parse(version)
+    except ValueError:
+        return None
+
+
+# Ecosystems the OSV schema documents as distribution package namespaces:
+# they version packages by the distribution's own scheme (``3.4.6-6.el8``,
+# ``3.1.1-2+deb9u2``, ``3.5.1+dfsg-1``), optionally scoped with a release
+# suffix (``Debian:11``, ``Alpine:v3.19``, ``SUSE:Server:15``,
+# ``Root:Alpine:3.18``). Verified against the schema's ecosystem table
+# (https://ossf.github.io/osv-schema/ #affectedpackage-schema): package
+# managers and registries (npm, PyPI, Maven, NuGet, Go, crates.io, ...),
+# project namespaces (Linux, OSS-Fuzz, Android, Bitnami, Kubernetes) and
+# version/score namespaces (NVD, CNA, CVSS_*) are deliberately absent —
+# only distributions re-version upstream packages in their own scheme.
+_DISTRIBUTION_ECOSYSTEMS = frozenset(
+    {
+        "AlmaLinux",
+        "Alpaquita",
+        "Alpine",
+        "Azure Linux",
+        "BellSoft Hardened Containers",
+        "Chainguard",
+        "CleanStart",
+        "Debian",
+        "Docker Hardened Images",
+        "FreeBSD",
+        "Mageia",
+        "MinimOS",
+        "Photon OS",
+        "Raspberry Pi OS",
+        "Red Hat",
+        "Red Hat Lightwell",
+        "Rocky Linux",
+        "Root",
+        "SUSE",
+        "TuxCare",
+        "Ubuntu",
+        "Wolfi",
+        "openEuler",
+        "openSUSE",
+    }
+)
+
+
+def _is_distribution_ecosystem(ecosystem: str | None) -> bool:
+    """Whether an affected entry's ecosystem is a distribution package
+    namespace (bare or with a release suffix).
+
+    The comparison is on the namespace before the first ``:`` so the release
+    suffixes the schema documents (``Debian:11``, ``Ubuntu:24.04``,
+    ``Alpine:v3.19``, ``openSUSE:Leap:15.5``) match their base distribution.
+    """
+    if ecosystem is None:
+        return False
+    namespace = ecosystem.split(":", 1)[0].strip()
+    return namespace in _DISTRIBUTION_ECOSYSTEMS
+
+
+def _covers_version(
+    introduced: str | None,
+    limit: str | None,
+    version_key: semver.Version | None,
+    limit_inclusive: bool = False,
+) -> bool:
+    """Whether the interval ``[introduced, limit]`` covers the detected version.
+
+    The limit is exclusive for ``fixed`` (the fixed version itself is safe)
+    and inclusive for ``last_affected`` (that version is still affected). An
+    unparsable bound or an unparsable detected version is treated as covering
+    (conservative inclusion): a bound we cannot compare must not silently
+    drop a fixed version from the recommendation.
+    """
+    if version_key is None:
+        return True
+    if introduced is not None and introduced not in ("", "0"):
+        introduced_key = _parse_version_key(introduced)
+        if introduced_key is not None and version_key < introduced_key:
+            return False
+    if limit is not None:
+        limit_key = _parse_version_key(limit)
+        if limit_key is not None:
+            if limit_inclusive:
+                if version_key > limit_key:
+                    return False
+            elif version_key >= limit_key:
+                return False
+    return True
+
+
+def _get_fixed_versions(
     affected_data: list[dict[str, Any]] | None,
-) -> str:
-    fixed_version = ""
+    package_name: str | None,
+    package_version: str | None = None,
+    ecosystem: str | None = None,
+    whitelisted_ecosystems: list[str] | None = None,
+) -> tuple[list[str], bool]:
+    """Collect the fixed-version endpoints of the affected intervals that
+    cover the detected package version.
+
+    OSV records are advisory-shaped: one record can list several packages
+    (the queried library, the frameworks that bundle it, and distro builds of
+    it), and one affected entry can carry several ranges — an advisory with
+    several affected version intervals, one per maintained branch (e.g.
+    protobuf's 3.18.3 / 3.19.5 / 3.20.2 / 4.21.6 for CVE-2022-1941). Reading
+    only ``affected[0]`` / ``ranges[0]`` / ``events[1]`` picks whatever the
+    record happened to list first — another package's fixed version (e.g. a
+    distro build of a bundled framework), or the endpoint of an interval that
+    does not cover the detected version, which yields recommendations the
+    installed version already satisfies.
+
+    Only the entries whose package name matches the queried package
+    (case-insensitive; an entry without a package is treated as the queried
+    package) and whose ecosystem matches, when one is given, are considered.
+    For an **unscoped** query (neither ``ecosystem`` nor
+    ``whitelisted_ecosystems``), distribution-namespace entries
+    (``Debian:11``, ``AlmaLinux:8``, ... — see
+    ``_is_distribution_ecosystem``) are skipped before collecting endpoints:
+    a distro's fixed version is expressed in the distribution's own version
+    scheme, is not actionable for an upstream consumer, and — when it happens
+    to parse as semver (``3.5.1+dfsg-1`` parses as build metadata,
+    ``3.4.6-6.el8`` as a pre-release) — can outrank the real ecosystem
+    endpoint. Distro endpoints therefore never enter the recommendation
+    through a query that did not target them; the semver aggregate's
+    parse-drop remains as the net for anything whitelisted on purpose (the
+    native-library pipeline whitelists distro ecosystems).
+    Within the kept entries, every interval that covers the detected version
+    contributes its ``fixed`` endpoint; the aggregate recommendation then
+    takes the maximum, which names the branch the user can stay on.
+    GIT ranges carry commit hashes, not versions, and are skipped for the
+    version comparison.
+
+    Returns the collected endpoints and whether any covering interval closes
+    with ``last_affected`` instead of ``fixed`` — an advisory with no
+    nameable safe version, for which the caller must fall back to
+    recommending the latest available version rather than an endpoint that
+    does not cover it.
+    """
     if affected_data is None:
-        return fixed_version
-
-    ranges_data: list[dict[str, Any]] = affected_data[0].get("ranges", [])
-    if len(ranges_data) > 0:
-        events_data = ranges_data[0].get("events", [])
-        if len(events_data) > 1:
-            fixed_version = events_data[1].get("fixed", "")
-
-    return fixed_version
+        return [], False
+    version_key = (
+        _parse_version_key(package_version) if package_version is not None else None
+    )
+    unscoped_query = ecosystem is None and not whitelisted_ecosystems
+    fixed_versions: list[str] = []
+    has_unfixed_covering_interval = False
+    for affected in affected_data:
+        package = affected.get("package") or {}
+        entry_name = package.get("name")
+        if (
+            package_name is not None
+            and entry_name is not None
+            and entry_name.lower() != package_name.lower()
+        ):
+            continue
+        entry_ecosystem = package.get("ecosystem")
+        if (
+            ecosystem is not None
+            and entry_ecosystem is not None
+            and entry_ecosystem != ecosystem
+        ):
+            continue
+        if unscoped_query and _is_distribution_ecosystem(entry_ecosystem):
+            continue
+        for ranges_data in affected.get("ranges", []):
+            if ranges_data.get("type") == "GIT":
+                continue
+            introduced: str | None = None
+            for event in ranges_data.get("events", []):
+                if "introduced" in event:
+                    introduced = str(event["introduced"])
+                    continue
+                if "fixed" in event:
+                    fixed_version = str(event["fixed"])
+                    if _covers_version(introduced, fixed_version, version_key):
+                        fixed_versions.append(fixed_version)
+                    introduced = None
+                    continue
+                if "last_affected" in event:
+                    if _covers_version(
+                        introduced,
+                        str(event["last_affected"]),
+                        version_key,
+                        limit_inclusive=True,
+                    ):
+                        # The affected interval ends at this version with no
+                        # named safe point: no fixed version can cover the
+                        # detected installation.
+                        has_unfixed_covering_interval = True
+                    introduced = None
+    return fixed_versions, has_unfixed_covering_interval
 
 
 def _get_highest_fixed_version(
     fixed_versions: list[str], package_name: str | None
 ) -> str:
-    """Return the highest valid semantic fixed version."""
-    parsed_versions: list[tuple[semver.Version, str]] = []
+    """Return the highest valid semantic fixed version.
+
+    The emitted string is the parsed version's ``major.minor.patch`` — never
+    the raw collected string — so an endpoint that slipped through the
+    entry-level filters carrying a distribution suffix (``3.5.1+dfsg-1``)
+    or pre-release segment (``3.4.6-6.el8``) is recommended in canonical
+    semver form rather than verbatim. Dropping pre-release/build segments is
+    conservative-safe for the "update to version >= X or later" semantics:
+    ``3.5.0`` follows ``3.5.0-beta.1`` in semver precedence, so naming the
+    release is always at-or-above the advisory's own first fixed version.
+    """
+    parsed_versions: list[semver.Version] = []
     for fixed_version in fixed_versions:
         try:
-            parsed_versions.append((semver.Version.parse(fixed_version), fixed_version))
+            parsed_versions.append(semver.Version.parse(fixed_version))
         except (TypeError, ValueError):
             logger.warning(
                 "Ignoring invalid fixed version `%s` for %s package.",
@@ -403,7 +625,8 @@ def _get_highest_fixed_version(
     if len(parsed_versions) == 0:
         return ""
 
-    return max(parsed_versions, key=lambda version: version[0])[1]
+    highest = max(parsed_versions)
+    return f"{highest.major}.{highest.minor}.{highest.patch}"
 
 
 def _get_cvss_v3_vector(severity_data: list[dict[str, str]]) -> str:
