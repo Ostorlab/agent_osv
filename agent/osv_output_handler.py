@@ -530,6 +530,16 @@ def _get_fixed_versions(
     through a query that did not target them; the semver aggregate's
     parse-drop remains as the net for anything whitelisted on purpose (the
     native-library pipeline whitelists distro ecosystems).
+    For a **whitelisted** query, entry collection is additionally restricted
+    to the whitelisted ecosystems: the record-level whitelist keeps a record
+    when ANY of its entries matches, so a record mixing a whitelisted entry
+    (``OSS-Fuzz``) with a non-whitelisted one for the same package name
+    (``npm``) would otherwise contribute the non-whitelisted endpoint, which
+    — being the highest semver — outranks the native fix in the aggregate.
+    The whitelist matches the ecosystem's namespace before the first ``:``
+    (case-insensitive), so release-suffixed forms of a whitelisted
+    namespace (``Alpine:v3.19`` for ``Alpine``) stay collectible; an entry
+    without an ecosystem fails open.
     Within the kept entries, every interval that covers the detected version
     contributes its ``fixed`` endpoint; the aggregate recommendation then
     takes the maximum, which names the branch the user can stay on.
@@ -548,6 +558,11 @@ def _get_fixed_versions(
         _parse_version_key(package_version) if package_version is not None else None
     )
     unscoped_query = ecosystem is None and not whitelisted_ecosystems
+    whitelisted_namespaces = (
+        {name.lower() for name in whitelisted_ecosystems}
+        if whitelisted_ecosystems
+        else None
+    )
     fixed_versions: list[str] = []
     has_unfixed_covering_interval = False
     for affected in affected_data:
@@ -568,6 +583,20 @@ def _get_fixed_versions(
             continue
         if unscoped_query and _is_distribution_ecosystem(entry_ecosystem):
             continue
+        if whitelisted_namespaces is not None and entry_ecosystem is not None:
+            # A whitelisted query deliberately targets its whitelisted
+            # ecosystems: a record passes the record-level whitelist when ANY
+            # of its entries matches, so without this restriction its other
+            # entries (e.g. an npm entry of the same package name) would
+            # contribute endpoints that — being the highest semver — outrank
+            # the native fix in the aggregate. The namespace before the
+            # first ``:`` is matched case-insensitively because whitelist
+            # entries are base namespaces (``Alpine``) while entries carry
+            # release suffixes (``Alpine:v3.19``); an entry without an
+            # ecosystem fails open, mirroring the ``ecosystem`` scope filter.
+            entry_namespace = entry_ecosystem.split(":", 1)[0].strip().lower()
+            if entry_namespace not in whitelisted_namespaces:
+                continue
         for ranges_data in affected.get("ranges", []):
             if ranges_data.get("type") == "GIT":
                 continue

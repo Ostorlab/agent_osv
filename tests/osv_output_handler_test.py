@@ -730,3 +730,151 @@ def testIsDistributionEcosystem_whenPackageManagerOrProjectNamespace_returnsFals
     distribution package namespaces and keep contributing to unscoped
     queries."""
     assert osv_output_handler._is_distribution_ecosystem(ecosystem) is False
+
+
+def testGetFixedVersions_whenWhitelistProvided_skipsNonWhitelistedEntries() -> None:
+    """A whitelisted query must collect only its whitelisted ecosystems'
+    endpoints.
+
+    The record-level whitelist keeps a record when ANY of its entries
+    matches, so a record mixing a whitelisted entry (``OSS-Fuzz``) with a
+    non-whitelisted one for the same package name (``npm``) passes the
+    filter — and on the previous revision its npm endpoint was collected
+    and, being the highest semver, won the aggregate: a node-opencv version
+    recommended for a native ELF/MACHO library."""
+    affected = [
+        {
+            "package": {"ecosystem": "OSS-Fuzz", "name": "opencv"},
+            "ranges": [
+                {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.2.3"}]}
+            ],
+        },
+        {
+            "package": {"ecosystem": "npm", "name": "opencv"},
+            "ranges": [
+                {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "6.1.0"}]}
+            ],
+        },
+    ]
+
+    endpoints, _ = osv_output_handler._get_fixed_versions(
+        affected,
+        "opencv",
+        package_version="1.0.0",
+        whitelisted_ecosystems=["OSS-Fuzz", "Alpine", "Debian", "Linux", "Bitnami"],
+    )
+
+    assert endpoints == ["1.2.3"]
+    assert osv_output_handler._get_highest_fixed_version(endpoints, "opencv") == "1.2.3"
+
+
+def testGetFixedVersions_whenWhitelistProvided_keepsReleaseSuffixedNamespace() -> None:
+    """The whitelist matches the ecosystem's namespace before the first
+    ``:`` (case-insensitive), so release-suffixed forms of a whitelisted
+    namespace (``Alpine:v3.19`` for ``Alpine``) stay collectible — the
+    native-library pipeline whitelists those distro ecosystems on purpose."""
+    affected = [
+        {
+            "package": {"ecosystem": "Alpine:v3.19", "name": "libfoo"},
+            "ranges": [
+                {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}
+            ],
+        },
+        {
+            "package": {"ecosystem": "OSS-FUZZ", "name": "libfoo"},
+            "ranges": [
+                {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "2.1.0"}]}
+            ],
+        },
+    ]
+
+    endpoints, _ = osv_output_handler._get_fixed_versions(
+        affected,
+        "libfoo",
+        package_version="1.5.0",
+        whitelisted_ecosystems=["oss-fuzz", "alpine"],
+    )
+
+    assert sorted(endpoints) == ["2.0.0", "2.1.0"]
+
+
+def testGetFixedVersions_whenWhitelistProvided_entryWithoutEcosystemFailsOpen() -> None:
+    """An entry without an ecosystem stays collectible under a whitelisted
+    query, mirroring the ``ecosystem`` scope filter's fail-open behavior for
+    missing evidence."""
+    affected = [
+        {
+            "package": {"name": "libfoo"},
+            "ranges": [
+                {"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "3.0.0"}]}
+            ],
+        }
+    ]
+
+    endpoints, _ = osv_output_handler._get_fixed_versions(
+        affected,
+        "libfoo",
+        package_version="1.5.0",
+        whitelisted_ecosystems=["OSS-Fuzz"],
+    )
+
+    assert endpoints == ["3.0.0"]
+
+
+def testParseVulnerabilitiesOsvApi_whenWhitelistedQuery_mixedEcosystemRecord(
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A whitelisted query recommends the whitelisted ecosystem's fix, not a
+    non-whitelisted entry's higher-semver endpoint.
+
+    The record passes the record-level whitelist through its OSS-Fuzz entry,
+    but its npm entry for the same package name carries the higher endpoint
+    (6.1.0): on the previous revision the aggregate recommended that npm
+    version for a native library, and the emitted technical detail read
+    '>= 6.1.0'."""
+    cve_data = cve_service_api.CVE(
+        risk="HIGH",
+        description="CVE description",
+        fixed_version=None,
+        cvss_v3_vector=None,
+    )
+    mocker.patch("agent.cve_service_api.get_cve_data_from_api", return_value=cve_data)
+    output = {
+        "vulns": [
+            {
+                "aliases": ["CVE-2026-10003"],
+                "database_specific": {"severity": "HIGH"},
+                "affected": [
+                    {
+                        "package": {"ecosystem": "OSS-Fuzz", "name": "opencv"},
+                        "ranges": [
+                            {
+                                "type": "SEMVER",
+                                "events": [{"introduced": "0"}, {"fixed": "1.2.3"}],
+                            }
+                        ],
+                    },
+                    {
+                        "package": {"ecosystem": "npm", "name": "opencv"},
+                        "ranges": [
+                            {
+                                "type": "SEMVER",
+                                "events": [{"introduced": "0"}, {"fixed": "6.1.0"}],
+                            }
+                        ],
+                    },
+                ],
+            }
+        ]
+    }
+
+    parsed = osv_output_handler.parse_vulnerabilities_osv_api(
+        output,
+        package_name="opencv",
+        package_version="1.0.0",
+        whitelisted_ecosystems=["OSS-Fuzz", "Alpine", "Debian", "Linux", "Bitnami"],
+    )
+
+    assert parsed[0].fixed_version == "1.2.3"
+    for vuln in osv_output_handler.construct_vuln(parsed):
+        assert "6.1.0" not in vuln.technical_detail
