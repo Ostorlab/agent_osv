@@ -734,6 +734,7 @@ class OSVAgent(
             package_version=package_version,
             api_key=self.api_key,
             whitelisted_ecosystems=whitelisted_ecosystems,
+            ecosystem=ecosystem,
         )
         if parsed_osv_output is None:
             return

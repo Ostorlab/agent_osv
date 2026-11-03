@@ -572,10 +572,17 @@ def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
         """Dependency `opencv` with version `3.4.0` has a security issue.
 The issue is identified by CVEs: `CVE-2019-10061`."""
     )
+    # The live OSV advisory for CVE-2019-10061 (node-opencv) fixes the
+    # command injection in 6.1.0 and the detected 3.4.0 is inside the
+    # affected interval [0, 6.1.0), so the recommendation names that fix.
+    # The previous expectation ("latest available version") documented the
+    # crash-to-empty defect: the ecosystem-less query returns distro records
+    # whose affected[0] fixed versions are distro-format strings (e.g.
+    # 3.4.6-6.el8), the old first-entry reader collected those, and the
+    # old max() crashed on them, wiping the recommendation for every CVE.
     assert (
-        agent_mock[0]
-        .data["recommendation"]
-        .startswith("We recommend updating `opencv` to the latest available version.")
+        agent_mock[0].data["recommendation"]
+        == "We recommend updating `opencv` to a version greater than or equal to `6.1.0`."
     )
 
 
