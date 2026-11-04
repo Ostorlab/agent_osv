@@ -1,6 +1,7 @@
 """Unittests for OSV agent."""
 
 import json
+import logging
 import subprocess
 from collections.abc import Callable
 from typing import Any
@@ -1739,3 +1740,108 @@ def testAgentOSV_whenOutputIsJsonArray_shouldNotEmitVulnerability(
     test_agent.process(scan_message_file)
 
     assert len(agent_mock) == 0
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/package-lock.json",
+        "https://user@example.com/package-lock.json",
+    ],
+    ids=["link", "link_with_userinfo"],
+)
+def testAgentOSV_whenLinkInScopeUrlsRegex_downloadsDependencyFile(
+    url: str,
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Dependency files behind links inside the URL scope are downloaded."""
+    requests_get_mock = mocker.patch("agent.osv_agent.requests.get")
+    requests_get_mock.return_value.text = ""
+    agent = osv_agent_with_scope_factory(r"https://example\.com/.*")
+
+    agent.process(message.Message.from_data("v3.asset.link", data={"url": url}))
+
+    assert requests_get_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://out-of-scope.com/package-lock.json",
+        "https://example.com@out-of-scope.com/package-lock.json",
+    ],
+    ids=["out_of_scope_link", "in_scope_userinfo_out_of_scope_host"],
+)
+def testAgentOSV_whenLinkOutOfScopeUrlsRegex_doesNotDownloadNorReport(
+    url: str,
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Dependency files behind links outside the URL scope are neither downloaded nor reported."""
+    requests_get_mock = mocker.patch("agent.osv_agent.requests.get")
+    run_command_mock = mocker.patch("agent.osv_agent._run_command")
+    agent = osv_agent_with_scope_factory(r"https://example\.com.*")
+
+    agent.process(message.Message.from_data("v3.asset.link", data={"url": url}))
+
+    assert requests_get_mock.call_count == 0
+    assert run_command_mock.call_count == 0
+    assert len(agent_mock) == 0
+
+
+def testAgentOSV_whenScopeUrlsRegexInvalid_doesNotDownloadLink(
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """An invalid scope regex skips links instead of crashing the agent."""
+    requests_get_mock = mocker.patch("agent.osv_agent.requests.get")
+    agent = osv_agent_with_scope_factory("https://(example.com")
+
+    agent.process(
+        message.Message.from_data(
+            "v3.asset.link", data={"url": "https://example.com/package-lock.json"}
+        )
+    )
+
+    assert requests_get_mock.call_count == 0
+
+
+def testAgentOSV_whenFileWithScopeUrlsRegex_scansFile(
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    scan_message_file: message.Message,
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """The URL scope does not apply to files, which have no URL."""
+    run_command_mock = mocker.patch("agent.osv_agent._run_command", return_value=None)
+    agent = osv_agent_with_scope_factory(r"https://example\.com.*")
+
+    agent.process(scan_message_file)
+
+    assert run_command_mock.called is True
+
+
+def testAgentOSV_whenLinkWithCredentialsOutOfScope_doesNotLogCredentials(
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Skipping an out-of-scope link logs it without the credentials of its `user:password@` part."""
+    mocker.patch("agent.osv_agent.requests.get")
+    agent = osv_agent_with_scope_factory(r"https://example\.com.*")
+    caplog.set_level(logging.DEBUG, logger="agent.osv_agent")
+
+    agent.process(
+        message.Message.from_data(
+            "v3.asset.link",
+            data={"url": "https://admin:s3cr3t@out-of-scope.com/package-lock.json"},
+        )
+    )
+
+    assert "https://out-of-scope.com/package-lock.json" in caplog.text
+    assert "s3cr3t" not in caplog.text
