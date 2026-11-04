@@ -1,6 +1,7 @@
 """Unittests for OSV agent."""
 
 import json
+import logging
 import subprocess
 from collections.abc import Callable
 from typing import Any
@@ -1749,7 +1750,7 @@ def testAgentOSV_whenOutputIsJsonArray_shouldNotEmitVulnerability(
     ],
     ids=["link", "link_with_userinfo"],
 )
-def testOSVAgent_whenLinkInScopeUrlsRegex_downloadsDependencyFile(
+def testAgentOSV_whenLinkInScopeUrlsRegex_downloadsDependencyFile(
     url: str,
     osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
     agent_mock: list[message.Message],
@@ -1773,7 +1774,7 @@ def testOSVAgent_whenLinkInScopeUrlsRegex_downloadsDependencyFile(
     ],
     ids=["out_of_scope_link", "in_scope_userinfo_out_of_scope_host"],
 )
-def testOSVAgent_whenLinkOutOfScopeUrlsRegex_doesNotDownloadNorReport(
+def testAgentOSV_whenLinkOutOfScopeUrlsRegex_doesNotDownloadNorReport(
     url: str,
     osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
     agent_mock: list[message.Message],
@@ -1791,7 +1792,7 @@ def testOSVAgent_whenLinkOutOfScopeUrlsRegex_doesNotDownloadNorReport(
     assert len(agent_mock) == 0
 
 
-def testOSVAgent_whenScopeUrlsRegexInvalid_doesNotDownloadLink(
+def testAgentOSV_whenScopeUrlsRegexInvalid_doesNotDownloadLink(
     osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
     agent_mock: list[message.Message],
     mocker: plugin.MockerFixture,
@@ -1809,7 +1810,7 @@ def testOSVAgent_whenScopeUrlsRegexInvalid_doesNotDownloadLink(
     assert requests_get_mock.call_count == 0
 
 
-def testOSVAgent_whenFileWithScopeUrlsRegex_scansFile(
+def testAgentOSV_whenFileWithScopeUrlsRegex_scansFile(
     osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
     scan_message_file: message.Message,
     agent_mock: list[message.Message],
@@ -1822,3 +1823,25 @@ def testOSVAgent_whenFileWithScopeUrlsRegex_scansFile(
     agent.process(scan_message_file)
 
     assert run_command_mock.called is True
+
+
+def testAgentOSV_whenLinkWithCredentialsOutOfScope_doesNotLogCredentials(
+    osv_agent_with_scope_factory: Callable[[str], osv_agent.OSVAgent],
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Skipping an out-of-scope link logs it without the credentials of its `user:password@` part."""
+    mocker.patch("agent.osv_agent.requests.get")
+    agent = osv_agent_with_scope_factory(r"https://example\.com.*")
+    caplog.set_level(logging.DEBUG, logger="agent.osv_agent")
+
+    agent.process(
+        message.Message.from_data(
+            "v3.asset.link",
+            data={"url": "https://admin:s3cr3t@out-of-scope.com/package-lock.json"},
+        )
+    )
+
+    assert "https://out-of-scope.com/package-lock.json" in caplog.text
+    assert "s3cr3t" not in caplog.text

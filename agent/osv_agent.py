@@ -499,8 +499,8 @@ class OSVAgent(
             or message.selector.startswith("v3.asset.link") is False
         ):
             return True
-        url = str(message.data.get("url", ""))
-        if self._scope_urls_pattern.match(_strip_url_userinfo(url)) is not None:
+        url = _strip_url_userinfo(str(message.data.get("url", "")))
+        if self._scope_urls_pattern.match(url) is not None:
             return True
         logger.debug(
             "Link %s is not in scope %s", url, self._scope_urls_pattern.pattern
