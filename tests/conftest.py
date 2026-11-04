@@ -462,3 +462,32 @@ def scan_message_file_content_url_supported_name() -> message.Message:
         "content_url": "https://storage.googleapis.com/ostorlabapps/uploads/package-lock.json",
     }
     return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture()
+def osv_agent_with_scope_factory(
+    agent_persist_mock: dict[str | bytes, str | bytes],
+) -> Callable[[str], osv_agent.OSVAgent]:
+    """Returns a builder of OSV agents configured with a given scope URLs regex."""
+    del agent_persist_mock
+
+    def _build(scope_urls_regex: str) -> osv_agent.OSVAgent:
+        with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
+            definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
+            settings = runtime_definitions.AgentSettings(
+                key="agent/ostorlab/osv",
+                bus_url="NA",
+                bus_exchange_topic="NA",
+                args=[
+                    utils_definitions.Arg(
+                        name="scope_urls_regex",
+                        type="string",
+                        value=json.dumps(scope_urls_regex).encode(),
+                    )
+                ],
+                healthcheck_port=0,
+                redis_url="redis://guest:guest@localhost:6379",
+            )
+            return osv_agent.OSVAgent(definition, settings)
+
+    return _build

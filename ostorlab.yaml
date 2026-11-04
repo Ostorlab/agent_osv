@@ -19,6 +19,9 @@ args:
   - name: "exclude_path_regexes"
     type: "array"
     description: "List of regex patterns; files whose path matches any pattern are skipped."
+  - name: "scope_urls_regex"
+    type: "string"
+    description: "Regular expression of the URLs in the scan scope, matched with re.match against the start of the link URL without its user:password@ part. Dependency files behind out-of-scope links are neither downloaded nor reported; files and repositories are not filtered. Anchor the end of the host to exclude look-alike hosts such as <domain>.evil.com. Empty means no filtering."
 docker_file_path : Dockerfile
 docker_build_root : .
 volumes:

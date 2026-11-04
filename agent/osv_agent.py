@@ -147,6 +147,52 @@ def _should_exclude_path(
     return False
 
 
+def _compile_scope_urls_regex(scope_urls_regex: str | None) -> re.Pattern[str] | None:
+    """Compile the scope regex once, when the agent starts.
+
+    Args:
+        scope_urls_regex: The scope regex, or None or "" for no filtering.
+
+    Returns:
+        The compiled regex, None without a scope regex, or a regex matching nothing when the scope regex is invalid,
+        so an invalid scope puts every link out of scope and is only logged once.
+    """
+    if scope_urls_regex is None or scope_urls_regex == "":
+        return None
+    try:
+        return re.compile(scope_urls_regex)
+    except re.error as e:
+        logger.error(
+            "Invalid scope_urls_regex %s: %s. No link will be scanned.",
+            scope_urls_regex,
+            e,
+        )
+        return re.compile(r"(?!)")
+
+
+def _strip_url_userinfo(url: str) -> str:
+    """Drop the `user:password@` part of a URL so the scope regex is matched against the host that is reached.
+
+    Args:
+        url: The URL of a link message.
+
+    Returns:
+        The URL without userinfo, or the URL unchanged when it has none or cannot be parsed.
+    """
+    try:
+        parsed_url = parse.urlsplit(url)
+        host = parsed_url.hostname
+        port = parsed_url.port
+    except ValueError:
+        return url
+    if "@" not in parsed_url.netloc or host is None:
+        return url
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = host if port is None else f"{host}:{port}"
+    return parse.urlunsplit(parsed_url._replace(netloc=netloc))
+
+
 def _get_content_url(message: m.Message) -> bytes | None:
     url = message.data.get("url")
     if url is None:
@@ -439,6 +485,27 @@ class OSVAgent(
     ) -> None:
         super().__init__(agent_definition, agent_settings)
         self.api_key = self.args.get("nvd_api_key", None)
+        self._scope_urls_pattern = _compile_scope_urls_regex(
+            self.args.get("scope_urls_regex")
+        )
+
+    def _is_link_in_scope(self, message: m.Message) -> bool:
+        """Check whether the URL of a link message matches the scope regex, without its `user:password@` part.
+
+        Only links are URL based: other assets are always in scope, as is every link without a scope regex.
+        """
+        if (
+            self._scope_urls_pattern is None
+            or message.selector.startswith("v3.asset.link") is False
+        ):
+            return True
+        url = str(message.data.get("url", ""))
+        if self._scope_urls_pattern.match(_strip_url_userinfo(url)) is not None:
+            return True
+        logger.debug(
+            "Link %s is not in scope %s", url, self._scope_urls_pattern.pattern
+        )
+        return False
 
     def process(self, message: m.Message) -> None:
         """Process messages of type v3.asset.file and scan dependencies against vulnerabilities.
@@ -633,6 +700,8 @@ class OSVAgent(
 
     def _process_file_asset(self, message: m.Message) -> None:
         """Process message of type v3.asset.file or v3.asset.link."""
+        if self._is_link_in_scope(message) is False:
+            return
         path = _get_path(message)
         if _should_exclude_path(path, self.args.get("exclude_path_regexes")) is True:
             return
