@@ -553,6 +553,87 @@ def testAgentOSV_whenNoFindingsFromTheApi_returnsNoVulnz(
     assert len(agent_mock) == 0
 
 
+def testAgentOSV_whenFingerprintVersionIsBareInteger_skipsOsvQuery(
+    test_agent: osv_agent.OSVAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A bare-integer version token such as `22509` is rejected before OSV query.
+
+    Regression test for the angular@22509 finding (CVE-2022-25844): the file
+    fingerprint agent parsed the non-version numeric token ``22509`` out of an
+    ``index.html`` and forwarded it as the Angular version. The OSV agent must
+    not resolve such a version against the OSV API, whose version-range
+    matching would otherwise report a CVE the installation does not carry.
+    """
+    query_osv_api = mocker.patch("agent.api_manager.osv_service_api.query_osv_api")
+    selector = "v3.fingerprint.file.library"
+    msg_data = {
+        "library_name": "angular",
+        "library_version": "22509",
+        "library_type": "JAVASCRIPT_LIBRARY",
+    }
+    msg = message.Message.from_data(selector, data=msg_data)
+
+    test_agent.process(msg)
+
+    assert len(agent_mock) == 0
+    assert query_osv_api.called is False
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "22509",
+        ".",
+        "RELEASE",
+        "latest",
+        "abc.1",
+        "1..0",
+        ".0",
+        "1",
+        "10",
+        "1_0_1",
+        "1.0.0-",
+        "",
+    ],
+)
+def testIsValidVersion_whenNotAVersion_returnsFalse(version: str) -> None:
+    """Non-version strings do not pass the fingerprint version validation."""
+    assert osv_agent._is_valid_version(version) is False
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        "1.8.2",
+        "4.7.11",
+        "6.0.0",
+        "3.4.0",
+        "6.5.0",
+        "4.9.0",
+        "0.1.0",
+        "3.4.6-6.el8",
+        "3.5.1+dfsg-1",
+        "7.26-1",
+        "1.0",
+        "1.0-SNAPSHOT",
+        "1.2.3-beta",
+        "1.2.3-rc.1",
+        "2.0.0.Final",
+        "2024.1",
+        "1.0.0+build.5",
+        "10.24",
+        "1.8",
+        "1.0.0-alpha.1",
+    ],
+)
+def testIsValidVersion_whenAVersion_returnsTrue(version: str) -> None:
+    """Real version strings pass the fingerprint version validation."""
+    assert osv_agent._is_valid_version(version) is True
+
+
 def testAgentOSV_whenPathInMessage_technicalDetailShouldIncludeIt(
     test_agent: osv_agent.OSVAgent,
     agent_mock: list[message.Message],

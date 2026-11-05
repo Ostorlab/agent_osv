@@ -117,6 +117,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# A complete, real version string: a numeric core made of at least one
+# dot-separated component, optionally followed by a pre-release/build or
+# distribution suffix (``-6.el8``, ``+dfsg-1``, ``-SNAPSHOT``). Bare numeric
+# tokens such as ``22509`` parsed out of an ``index.html`` carry no dot and are
+# not versions, so they must not reach the OSV API version-range matching.
+FINGERPRINT_VERSION_PATTERN = re.compile(
+    r"^[0-9]+(\.[0-9A-Za-z]+)+([-+][0-9A-Za-z._-]+)?$"
+)
+
+
+def _is_valid_version(version: str) -> bool:
+    """Return True when a version string looks like a complete, real version.
+
+    Fingerprint rules can match incidental text and forward malformed versions
+    — a bare integer like ``"22509"`` (matched from an ``index.html``), a
+    ``"."`` (matched from an ``angular.io`` URL) or a pseudo-tag such as
+    ``"RELEASE"``/``"latest"``. Such strings are not versions and must not be
+    resolved against the OSV API, whose version-range matching would otherwise
+    report a CVE the installation does not carry (e.g. ``angular@22509``
+    matching CVE-2022-25844's ``>= 1.7.0`` range).
+
+    Args:
+        version: The version string carried by a fingerprint message.
+
+    Returns:
+        True when the version has the shape of a real version, False otherwise.
+    """
+    return FINGERPRINT_VERSION_PATTERN.fullmatch(version) is not None
+
 
 def _should_exclude_path(
     path: str | None, exclude_path_regexes: list[str] | None
@@ -771,6 +800,13 @@ class OSVAgent(
             return
         if package_name is None:
             logger.warning("Error: Package name must not be None.")
+            return
+        if _is_valid_version(str(package_version)) is False:
+            logger.warning(
+                "Skipping fingerprint for %s: version %r is not a valid version.",
+                package_name,
+                package_version,
+            )
             return
 
         ecosystems = OSV_ECOSYSTEM_MAPPING.get(str(package_type), [])
